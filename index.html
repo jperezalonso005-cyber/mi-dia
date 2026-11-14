@@ -111,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794698007"></script>
-<script src="supabase.js?v=1794698007"></script>
-<script src="standalone.js?v=1794698007"></script>
+<script src="config.js?v=1794698211"></script>
+<script src="supabase.js?v=1794698211"></script>
+<script src="standalone.js?v=1794698211"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -169,7 +169,7 @@ function remapStored(fromC,toC){ // pasa los colores guardados (asignaturas, rut
   if(S.app.estudio&&S.app.estudio.asig) saveEst({asig:asigs().map(a=>Object.assign({},a,{col:tr(a.col)}))});
   if(S.app.rutina&&S.app.rutina.dias) saveRut(rutina().map(r=>Object.assign({},r,{col:tr(r.col)})));
 }
-function setTema(p){ const before=Object.assign({},C); const t=Object.assign({},tema(),p); write("app","tema",t); _temaSig=""; applyTheme(); remapStored(before,C); render() }
+function setTema(p){ const before=Object.assign({},C); const t=Object.assign({},tema(),p); putDoc("app","tema",t); _temaSig=""; applyTheme(); remapStored(before,C); render() }
 function vTema(){
   const t=tema();
   return `<button class="link mute" onclick="go('mas')">‹ Más</button><h1>Apariencia</h1>
@@ -195,7 +195,7 @@ let S={}; for(const c of COLS) S[c]=LS.get("v2_"+c,{});
 // migra entrenos antiguos guardados solo en el móvil
 (function(){const old=LS.get("gym_sesiones",null); if(old){ for(const s of old) if(!S.sesiones[s.id]) S.sesiones[s.id]=s; LS.set("v2_sesiones",S.sesiones); LS.del("gym_sesiones"); }})();
 let db=null, dbState="cargando", chains={};
-function write(col,id,obj){
+function putDoc(col,id,obj){
   obj=clone(obj); S[col][id]=obj; LS.set("v2_"+col,S[col]); schedule();
   if(!db) return; const k=col+"/"+id;
   chains[k]=(chains[k]||Promise.resolve()).then(()=>db.doc(k).set(obj)).catch(e=>{ if(e&&e.code==="quota_exceeded") toast("No queda espacio para guardar más"); });
@@ -334,11 +334,11 @@ function blockInfo(e){
 }
 function toggleBlock(id){
   const e=evById(id); if(!e) return; const all=Object.assign({},bDone()), info=blockInfo(e);
-  if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); delete all[id]; write("app","bloques",all); return }
+  if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); delete all[id]; putDoc("app","bloques",all); return }
   const min=Math.round((e.e-e.s)/60000); let fid=null;
-  if(info.materia){ fid=uid(); write("foco",fid,{ymd:ymd(e.s),fecha:new Date().toISOString(),materia:info.materia,min,bloque:id}) }
+  if(info.materia){ fid=uid(); putDoc("foco",fid,{ymd:ymd(e.s),fecha:new Date().toISOString(),materia:info.materia,min,bloque:id}) }
   if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=true;x.doneEl=today()}});
-  all[id]={d:today(),foco:fid}; write("app","bloques",all);
+  all[id]={d:today(),foco:fid}; putDoc("app","bloques",all);
   toast(info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho");
 }
 function evRow(e){
@@ -411,7 +411,7 @@ function vAgenda(){
 }
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5],semana:"proxima",manana:true},S.app.plan||{});
-function savePlan(p){ write("app","plan",Object.assign({},plan(),p)) }
+function savePlan(p){ putDoc("app","plan",Object.assign({},plan(),p)) }
 let prop=null, propBusy=false;
 const asigHours=code=>{ const v=plan().asigH[code]; return v==null?2:v };
 const asigTemasN=code=>{ const v=(plan().asigT||{})[code]; return v==null?1:v };
@@ -599,9 +599,9 @@ function cats(){ const o={}; for(const a of asigs()) o[a.code]=a.col; Object.ass
 const catCol=c=>cats()[c]||(c==="Clase"?C.sky:C.sage);
 let tNew={t:"",fecha:"",cat:"TFG"}, showDone=false, tEdit=null;
 function openTask(id){ const t=S.tareas[id]; if(!t) return; tEdit={id,t:t.t,fecha:t.fecha||"",cat:t.cat}; render() }
-function saveTask(){ const x=tEdit, t=S.tareas[x.id]; if(!t||!x.t.trim()) return; write("tareas",x.id,Object.assign({},t,{t:x.t.trim(),fecha:x.fecha||null,cat:x.cat})); tEdit=null; render() }
-function addTask(){ const t=tNew.t.trim(); if(!t) return; write("tareas",uid(),{t,fecha:tNew.fecha||null,cat:tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
-function toggleTask(id){ const t=S.tareas[id]; if(!t) return; write("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); }
+function saveTask(){ const x=tEdit, t=S.tareas[x.id]; if(!t||!x.t.trim()) return; putDoc("tareas",x.id,Object.assign({},t,{t:x.t.trim(),fecha:x.fecha||null,cat:x.cat})); tEdit=null; render() }
+function addTask(){ const t=tNew.t.trim(); if(!t) return; putDoc("tareas",uid(),{t,fecha:tNew.fecha||null,cat:tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
+function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); }
 function delTask(id){ removeDoc("tareas",id) }
 function taskRow(id,t){
   if(tEdit&&tEdit.id===id) return `<div class="it" style="display:block"><input value="${esc(tEdit.t)}" oninput="tEdit.t=this.value">
@@ -624,12 +624,12 @@ function taskForm(compact){
 let tarTab="tareas", notaNew="";
 function vNotas(){
   const ns=Object.entries(S.notas).sort((a,b)=>((b[1].pin?1:0)-(a[1].pin?1:0))||(b[1].fecha||"").localeCompare(a[1].fecha||""));
-  return `<div class="card"><form onsubmit="event.preventDefault();if(notaNew.trim()){write('notas',uid(),{t:notaNew.trim(),fecha:new Date().toISOString(),pin:false});notaNew=''}">
+  return `<div class="card"><form onsubmit="event.preventDefault();if(notaNew.trim()){putDoc('notas',uid(),{t:notaNew.trim(),fecha:new Date().toISOString(),pin:false});notaNew=''}">
       <textarea placeholder="Idea, enlace, algo que no quieres olvidar…" oninput="notaNew=this.value">${esc(notaNew)}</textarea><button class="btn small" style="margin-top:6px">Guardar nota</button></form></div>
     ${ns.map(([k,n])=>`<div class="card" style="padding:12px;${n.pin?`border-color:${C.daff};border-width:2px`:""}">
-      <textarea style="background:transparent;border:0;padding:0;min-height:24px" onchange="write('notas','${k}',Object.assign({},S.notas['${k}'],{t:this.value}))">${esc(n.t)}</textarea>
+      <textarea style="background:transparent;border:0;padding:0;min-height:24px" onchange="putDoc('notas','${k}',Object.assign({},S.notas['${k}'],{t:this.value}))">${esc(n.t)}</textarea>
       <div class="row between"><span class="sub">${esc(fmtDay(new Date(n.fecha),{day:"numeric",month:"short"}))}</span>
-      <span class="row"><button class="link mute" onclick="write('notas','${k}',Object.assign({},S.notas['${k}'],{pin:!S.notas['${k}'].pin}))">${n.pin?"📌 Fijada":"Fijar"}</button><button class="x" onclick="removeDoc('notas','${k}')">✕</button></span></div></div>`).join("")||'<div class="sub">Aún no tienes notas.</div>'}`;
+      <span class="row"><button class="link mute" onclick="putDoc('notas','${k}',Object.assign({},S.notas['${k}'],{pin:!S.notas['${k}'].pin}))">${n.pin?"📌 Fijada":"Fijar"}</button><button class="x" onclick="removeDoc('notas','${k}')">✕</button></span></div></div>`).join("")||'<div class="sub">Aún no tienes notas.</div>'}`;
 }
 function vTareas(){
   const tabs=`<div class="seg"><button class="${tarTab==="tareas"?"on":""}" onclick="tarTab='tareas';render()">Tareas</button><button class="${tarTab==="notas"?"on":""}" onclick="tarTab='notas';render()">Notas</button></div>`;
@@ -653,9 +653,9 @@ const HCOL=[C.pool,C.fuchsia,C.sky,C.hay,C.lav,C.poppy,C.sage,C.egg];
 const habs=()=>(S.app.habitos&&S.app.habitos.lista)||DEF_HAB;
 let habEdit=false, habNew="";
 function hasHab(d,id){ const l=S.habitoslog[d]; return !!(l&&l.h&&l.h[id]) }
-function toggleHab(id,d){ d=d||today(); const l=S.habitoslog[d]||{fecha:d,h:{}}; const h=Object.assign({},l.h); if(h[id]) delete h[id]; else h[id]=true; write("habitoslog",d,{fecha:d,h}); }
+function toggleHab(id,d){ d=d||today(); const l=S.habitoslog[d]||{fecha:d,h:{}}; const h=Object.assign({},l.h); if(h[id]) delete h[id]; else h[id]=true; putDoc("habitoslog",d,{fecha:d,h}); }
 function streak(id){ let n=0, d=new Date(); if(!hasHab(today(),id)) d=addDays(d,-1); while(hasHab(ymd(d),id)){n++; d=addDays(d,-1)} return n }
-function saveHabs(l){ write("app","habitos",{lista:l}) }
+function saveHabs(l){ putDoc("app","habitos",{lista:l}) }
 function habRows(withDots){
   return habs().map((x,i)=>{ const on=hasHab(today(),x.id), col=HCOL[i%HCOL.length], st=streak(x.id);
     let dots=""; if(withDots){ dots=`<div class="dots">${[6,5,4,3,2,1,0].map(k=>{const d=ymd(addDays(new Date(),-k));return `<span class="dot" style="${hasHab(d,x.id)?`background:${col}`:""}"></span>`}).join("")}</div>`; }
@@ -680,8 +680,8 @@ const MEALS=[["des","Desayuno"],["com","Comida"],["cen","Cena"]];
 let comTab="menu", buyNew="", menuDay=null;
 const todayKey=()=>DIAS[(new Date().getDay()+6)%7][0];
 function menu(){ return (S.app.menu&&S.app.menu.d)||{} }
-function setMeal(dia,m,v){ const d=clone(menu()); d[dia]=Object.assign({},d[dia],{[m]:v}); write("app","menu",{d}) }
-function addBuy(){ const t=buyNew.trim(); if(!t) return; write("compra",uid(),{t,hecho:false,creado:new Date().toISOString()}); buyNew=""; render() }
+function setMeal(dia,m,v){ const d=clone(menu()); d[dia]=Object.assign({},d[dia],{[m]:v}); putDoc("app","menu",{d}) }
+function addBuy(){ const t=buyNew.trim(); if(!t) return; putDoc("compra",uid(),{t,hecho:false,creado:new Date().toISOString()}); buyNew=""; render() }
 const DEF_RECETAS=[
   {id:"d1",n:"Tortilla francesa con queso",ing:"huevos, queso",tipo:"cen"},
   {id:"d2",n:"Fajitas de jamón y queso",ing:"jamón york, queso en lonchas",tipo:"cen"},
@@ -698,10 +698,11 @@ function genCompra(){
   for(const [d] of DIAS) for(const [m] of MEALS){ const v=((menu()[d]||{})[m]||"").trim().toLowerCase(); if(!v) continue;
     const r=rs.find(x=>x.n.toLowerCase()===v); if(!r) continue;
     for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ have.add(i.toLowerCase()); add.push(i) } }
-  for(const i of add) write("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true});
+  for(const i of add) putDoc("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true});
   toast(add.length?`Añadidos ${add.length} ingredientes ✓`:"Ya tenías todo en la lista (o el menú no usa recetas guardadas)");
 }
 /* ---------- Importar receta de TikTok/Instagram: texto del post o capturas ---------- */
+window.mdIAKey=()=>(S.app.ia&&S.app.ia.key)||"";
 let imp={url:"",txt:"",fotos:[],busy:false,prev:null}, recVer=null, sampleFn=null, sampleReady=false;
 async function getSample(){ if(sampleReady) return sampleFn; sampleReady=true; try{ sampleFn=await window.claude?.use?.("sample") ?? null }catch(e){ sampleFn=null } return sampleFn }
 const ingList=r=>String(r.ing||"").split(/\n|,(?![^(]*\))/).map(x=>x.trim()).filter(Boolean);
@@ -732,7 +733,7 @@ async function framesDeVideo(file,max){
   URL.revokeObjectURL(url); return out;
 }
 async function addVideo(inp){
-  const f=inp.files&&inp.files[0]; if(!f) return; imp.busy=true; imp.vid=f.name; render();
+  const f=inp.files&&inp.files[0]; if(!f) return; imp.busy=true; imp.vid=f.name; imp.vfile=f; render();
   try{ const fr=await framesDeVideo(f,10); imp.fotos=[...imp.fotos.filter(x=>!x._v),...fr.map(b=>(b._v=1,b))].slice(0,12); toast(`🎬 ${fr.length} fotogramas sacados del vídeo`) }
   catch(e){ toast("No he podido leer ese vídeo; prueba con capturas") }
   imp.busy=false; render();
@@ -750,15 +751,18 @@ ${imp.txt.slice(0,6000)||"(sin texto, mira las capturas)"}`;
   try{
     let lim=null; try{ lim=await sp.limits() }catch(e){}
     const opts={modelTier:"default"}; if(imp.fotos.length&&lim&&lim.images) opts.images=imp.fotos;
+    if(lim&&lim.video&&imp.vfile&&imp.vfile.size<18e6){ opts.video=imp.vfile; opts.images=imp.fotos.filter(x=>!x._v) }
     const v=await sp.json(prompt,opts);
     imp.prev={n:v.n||"Receta",tipo:["des","com","cen"].includes(v.tipo)?v.tipo:"com",ing:(v.ing||[]).join("\n"),pasos:(v.pasos||[]).join("\n"),keto:v.keto||"",raciones:v.raciones||null,fuente:imp.url};
-  }catch(e){ if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); toast("No he podido usar Claude; la he sacado del texto") } else toast(e&&e.code==="not_granted"?"Esta versión no puede leer fotos":"No he podido leerla, prueba otra vez") }
+  }catch(e){ if(e&&e.code==="bad_key"){ imp.busy=false; render(); return toast("La clave de IA no es válida: revísala en Más → Datos") }
+    if(e&&e.code==="rate_limited"){ imp.busy=false; render(); return toast("La IA gratuita está saturada: prueba en un minuto") }
+    if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); toast("No he podido usar Claude; la he sacado del texto") } else toast(e&&e.code==="not_granted"?"Esta versión no puede leer fotos":"No he podido leerla, prueba otra vez") }
   imp.busy=false; render();
 }
-function guardarImp(){ const p=imp.prev; if(!p||!p.n.trim()) return; write("recetas",uid(),{n:p.n.trim(),ing:p.ing.trim(),pasos:p.pasos.trim(),tipo:p.tipo,keto:p.keto||"",fuente:p.fuente||"",raciones:p.raciones||null,creado:new Date().toISOString()});
-  imp={url:"",txt:"",fotos:[],busy:false,prev:null,vid:null}; toast("Receta guardada ✓") }
+function guardarImp(){ const p=imp.prev; if(!p||!p.n.trim()) return; putDoc("recetas",uid(),{n:p.n.trim(),ing:p.ing.trim(),pasos:p.pasos.trim(),tipo:p.tipo,keto:p.keto||"",fuente:p.fuente||"",raciones:p.raciones||null,creado:new Date().toISOString()});
+  imp={url:"",txt:"",fotos:[],busy:false,prev:null,vid:null,vfile:null}; toast("Receta guardada ✓") }
 function compraDe(r){ const have=new Set(Object.values(S.compra).filter(x=>!x.hecho).map(x=>x.t.trim().toLowerCase())); let n=0;
-  for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ write("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true}); have.add(i.toLowerCase()); n++ }
+  for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ putDoc("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true}); have.add(i.toLowerCase()); n++ }
   toast(n?`🛒 ${n} ingredientes añadidos a la compra`:"Ya estaban todos en la lista") }
 function vImport(){
   const p=imp.prev;
@@ -777,7 +781,7 @@ function vImport(){
       <label class="btn small ghost" style="cursor:pointer">📷 Capturas${imp.fotos.filter(x=>!x._v).length?` (${imp.fotos.filter(x=>!x._v).length})`:""}<input type="file" accept="image/*" multiple style="display:none" onchange="imp.fotos=[...imp.fotos,...this.files].slice(0,12);render()"></label>
       ${imp.fotos.length?`<button class="link mute" onclick="imp.fotos=[];imp.vid=null;render()">Quitar</button>`:""}</div>`:""}
     <button class="btn" style="margin-top:10px" onclick="importReceta()">${imp.busy?"Leyendo la receta…":"Sacar la receta"}</button>
-    <div class="note">${sampleFn?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo) y súbelo aquí: saco fotogramas y Claude lee lo que sale en pantalla. El audio no lo oye, así que si la receta solo se dice hablando, pega también la descripción.":"En esta versión leo el texto pegado. Para capturas o textos liosos, mándaselos a Claude en el chat y pega aquí lo que te devuelva."}</div></div>`;
+    <div class="note">${sampleFn&&window.mdStandalone?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo; Instagram: grabación de pantalla) y súbelo: la IA lo ve y oye el audio. Si pesa más de 18 MB, uso fotogramas.":!sampleFn&&window.mdStandalone?"Para subir vídeos o capturas, añade tu clave gratuita de IA en Más → Datos.":sampleFn?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo) y súbelo aquí: saco fotogramas y Claude lee lo que sale en pantalla. El audio no lo oye, así que si la receta solo se dice hablando, pega también la descripción.":"En esta versión leo el texto pegado. Para capturas o textos liosos, mándaselos a Claude en el chat y pega aquí lo que te devuelva."}</div></div>`;
 }
 function vRecetaDetalle(){
   const r=recetas().find(x=>x.id===recVer); if(!r){ recVer=null; return vRecetas() }
@@ -800,11 +804,11 @@ function vRecetas(){
     <input placeholder="Nombre (ej. Pizza de base de pollo)" value="${esc(recNew2.n)}" oninput="recNew2.n=this.value">
     <input style="margin-top:6px" placeholder="Ingredientes separados por comas" value="${esc(recNew2.ing)}" oninput="recNew2.ing=this.value">
     <div class="seg">${MEALS.map(([k,n])=>`<button class="${recNew2.tipo===k?"on":""}" onclick="recNew2.tipo='${k}';render()">${n}</button>`).join("")}</div>
-    <button class="btn small" onclick="if(recNew2.n.trim()){write('recetas',uid(),{n:recNew2.n.trim(),ing:recNew2.ing.trim(),tipo:recNew2.tipo});recNew2={n:'',ing:'',tipo:recNew2.tipo}}else toast('Ponle nombre')">+ Guardar receta</button></div>
+    <button class="btn small" onclick="if(recNew2.n.trim()){putDoc('recetas',uid(),{n:recNew2.n.trim(),ing:recNew2.ing.trim(),tipo:recNew2.tipo});recNew2={n:'',ing:'',tipo:recNew2.tipo}}else toast('Ponle nombre')">+ Guardar receta</button></div>
     ${MEALS.map(([k,n])=>{ const l=rs.filter(r=>r.tipo===k); return l.length?`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">${n}</span></div>
       <div class="list">${l.map(r=>`<div class="it" style="align-items:flex-start"><div class="grow"><b style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(r.n)} ›</b><div class="sub" style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(ingList(r).slice(0,6).join(", "))}${r.pasos?" · con pasos":""}</div>
         <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:6px">${DIAS.map(([d,dn])=>`<button class="pill" style="background:var(--soft);color:var(--mute);font-size:11px" onclick="setMeal('${d}','${k}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,2)}</button>`).join("")}</div></div>
-        <button class="x" onclick="${r.mia?`removeDoc('recetas','${r.id}')`:`write('app','comida',{ocultas:[...((S.app.comida&&S.app.comida.ocultas)||[]),'${r.id}']})`}">✕</button></div>`).join("")}</div></div>`:"" }).join("")}
+        <button class="x" onclick="${r.mia?`removeDoc('recetas','${r.id}')`:`putDoc('app','comida',{ocultas:[...((S.app.comida&&S.app.comida.ocultas)||[]),'${r.id}']})`}">✕</button></div>`).join("")}</div></div>`:"" }).join("")}
     <div class="note">Toca un día debajo de una receta para ponerla en el menú.</div>`;
 }
 function vComida(){
@@ -821,7 +825,7 @@ function vComida(){
   }else{
     const it=Object.entries(S.compra).sort((a,b)=>(a[1].hecho-b[1].hecho)||(a[1].creado||"").localeCompare(b[1].creado||""));
     h+=`<div class="card"><form class="row" onsubmit="event.preventDefault();addBuy()"><input placeholder="Añadir (huevos, aguacate…)" value="${esc(buyNew)}" oninput="buyNew=this.value"><button class="btn small">+</button></form></div>
-      <div class="card list">${it.length?it.map(([k,x])=>`<div class="it"><button class="chk ${x.hecho?"on":""}" style="${x.hecho?`background:${C.hay}`:""}" onclick="write('compra','${k}',Object.assign({},S.compra['${k}'],{hecho:!S.compra['${k}'].hecho}))">${x.hecho?"✓":""}</button><div class="grow ${x.hecho?"done-t":""}">${esc(x.t)}</div><button class="x" onclick="removeDoc('compra','${k}')">✕</button></div>`).join(""):'<div class="sub">Lista vacía.</div>'}</div>
+      <div class="card list">${it.length?it.map(([k,x])=>`<div class="it"><button class="chk ${x.hecho?"on":""}" style="${x.hecho?`background:${C.hay}`:""}" onclick="putDoc('compra','${k}',Object.assign({},S.compra['${k}'],{hecho:!S.compra['${k}'].hecho}))">${x.hecho?"✓":""}</button><div class="grow ${x.hecho?"done-t":""}">${esc(x.t)}</div><button class="x" onclick="removeDoc('compra','${k}')">✕</button></div>`).join(""):'<div class="sub">Lista vacía.</div>'}</div>
       ${it.some(([k,x])=>x.hecho)?`<button class="link mute" onclick="for(const [k,x] of Object.entries(S.compra)) if(x.hecho) removeDoc('compra',k)">Quitar lo comprado</button>`:""}`;
   }
   return h;
@@ -839,7 +843,7 @@ async function exportData(){
 function importData(txt){
   let o; try{ o=JSON.parse(txt) }catch(e){ return toast("Eso no es una copia válida") }
   if(!o||o.app!=="mi-dia"||!o.S) return toast("Eso no es una copia de Mi día");
-  let n=0; for(const c of COLS){ const m=o.S[c]||{}; for(const id in m){ if(!S[c][id]||c==="app"){ write(c,id,m[id]); n++ } } }
+  let n=0; for(const c of COLS){ const m=o.S[c]||{}; for(const id in m){ if(!S[c][id]||c==="app"){ putDoc(c,id,m[id]); n++ } } }
   impTxt=""; toast(n?`Importado: ${n} elementos ✓`:"No había nada nuevo"); 
 }
 function importFile(inp){ const f=inp.files&&inp.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>importData(String(r.result)); r.readAsText(f) }
@@ -848,7 +852,11 @@ function vAjustes(){
   const st=window.mdStandalone?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Cuenta y calendario</span></div>
     <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn small ghost" onclick="mdShowSetup()">Configuración</button>
     ${mcp?`<button class="btn small ghost" onclick="connectGoogle()">Reconectar Google</button><button class="btn small ghost" onclick="disconnectGoogle()">Desconectar Google</button>`:""}
-    <button class="btn small ghost" onclick="mdLogout()">Cerrar sesión</button></div></div>`:"";
+    <button class="btn small ghost" onclick="mdLogout()">Cerrar sesión</button></div></div>
+    <div class="card"><div class="head" style="background:${C.fuchsia};color:#fff"><span class="cap">IA para recetas (Gemini)</span></div>
+      <div class="sub">Para que la web lea vídeos y capturas de recetas. Clave gratuita de aistudio.google.com.</div>
+      <input style="margin-top:8px" type="password" placeholder="Pega aquí tu clave (AIza…)" value="${esc((S.app.ia&&S.app.ia.key)||"")}" onchange="putDoc('app','ia',{key:this.value.trim()});sampleReady=false;toast(this.value.trim()?'Clave guardada ✓':'Clave quitada')">
+      <div class="note">${(S.app.ia&&S.app.ia.key)?"✓ Activada: en Recetas ya puedes subir vídeos.":"Sin clave, en Recetas solo se puede pegar texto."} Se guarda en tu cuenta, solo para ti.</div></div>`:"";
   return `<div class="row between"><h1>Datos</h1><button class="link" onclick="go('mas')">Volver</button></div>`+st+`
   <div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Dónde se guarda</span></div>
     <div>${dbState==="ok"?(window.mdStandalone?"En tu base de datos (Supabase): lo ves igual en el móvil y en el ordenador.":"En tu cuenta de Claude: lo ves igual desde cualquier dispositivo."):"En este navegador. Si borras los datos de Safari, se pierden: haz una copia de vez en cuando."}</div>
@@ -869,7 +877,7 @@ const DEF_FASES=["Exploración y tareas de los tutores","Estado del arte (netFou
 const est=()=>S.app.estudio||{};
 const asigs=()=>est().asig||DEF_ASIG;
 const tfg=()=>Object.assign({fases:DEF_FASES,preg:[],entrega:"",reunion:""},est().tfg||{});
-function saveEst(patch){ write("app","estudio",Object.assign({},est(),patch)) }
+function saveEst(patch){ putDoc("app","estudio",Object.assign({},est(),patch)) }
 function saveTfg(patch){ saveEst({tfg:Object.assign({},tfg(),patch)}) }
 let estTab="tfg", logNew="", pregNew="", faseNew="", asigEdit=false, asigNew="";
 const daysTo=d=>Math.round((parseYmd(d)-parseYmd(today()))/864e5);
@@ -882,7 +890,7 @@ function calFor(code){ estRange(); const re=new RegExp("\\b"+code.replace(/[.*+?
 /* --- Foco (pomodoro) --- */
 let F=null, fCfg=Object.assign({foco:25,desc:5,materia:"TFG"},LS.get("foco_cfg",{})), fTimer=null;
 function focusStart(){ unlockAudio(); keepAwake(); F={materia:fCfg.materia,mode:"foco",end:Date.now()+fCfg.foco*60000,total:fCfg.foco*60,start:Date.now()}; fRun(); render(); say(`Foco de ${fCfg.foco} minutos. ${fCfg.materia}`) }
-function focusLog(min){ if(min>=1) write("foco",uid(),{ymd:today(),fecha:new Date().toISOString(),materia:F.materia,min:Math.round(min)}) }
+function focusLog(min){ if(min>=1) putDoc("foco",uid(),{ymd:today(),fecha:new Date().toISOString(),materia:F.materia,min:Math.round(min)}) }
 function focusStop(){ if(F&&F.mode==="foco") focusLog((Date.now()-F.start)/60000); F=null; clearInterval(fTimer); render() }
 function fRun(){ clearInterval(fTimer); fTimer=setInterval(fTick,500) }
 function fTick(){
@@ -937,7 +945,7 @@ function vTfg(){
   // encargos
   h+=`<div class="card"><div class="head" style="background:${C.peach}"><span class="cap">Encargos y tareas del TFG</span><span class="cap">${tk.length}</span></div>
     <div class="list">${tk.map(([k,x])=>taskRow(k,x)).join("")||'<div class="sub" style="padding:4px 0 10px">Nada pendiente.</div>'}</div>
-    <form class="row" onsubmit="event.preventDefault();const v=this.t.value.trim();const d=this.d.value;if(v){write('tareas',uid(),{t:v,fecha:d||null,cat:'TFG',hecho:false,creado:new Date().toISOString()});this.reset()}">
+    <form class="row" onsubmit="event.preventDefault();const v=this.t.value.trim();const d=this.d.value;if(v){putDoc('tareas',uid(),{t:v,fecha:d||null,cat:'TFG',hecho:false,creado:new Date().toISOString()});this.reset()}">
       <input name="t" placeholder="Nuevo encargo…"><input name="d" type="date" style="max-width:140px"><button class="btn small">+</button></form></div>`;
   // fases
   h+=`<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Fases</span><span class="cap">${done}/${t.fases.length}</span></div>
@@ -947,7 +955,7 @@ function vTfg(){
   // diario
   h+=`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Diario del TFG</span></div>
     <div class="sub">Apunta en una línea lo que hiciste o aprendiste. Te salvará al escribir la memoria.</div>
-    <form style="margin-top:8px" onsubmit="event.preventDefault();if(logNew.trim()){write('tfglog',uid(),{fecha:new Date().toISOString(),t:logNew.trim()});logNew=''}">
+    <form style="margin-top:8px" onsubmit="event.preventDefault();if(logNew.trim()){putDoc('tfglog',uid(),{fecha:new Date().toISOString(),t:logNew.trim()});logNew=''}">
       <textarea placeholder="Hoy he…" oninput="logNew=this.value">${esc(logNew)}</textarea><button class="btn small" style="margin-top:6px">Guardar entrada</button></form>
     <div class="list" style="margin-top:6px">${logs.slice(0,15).map(([k,l])=>`<div class="it" style="align-items:flex-start"><span class="sub" style="min-width:52px">${esc(fmtDay(new Date(l.fecha),{day:"numeric",month:"short"}))}</span><div class="grow">${esc(l.t)}</div><button class="x" onclick="removeDoc('tfglog','${k}')">✕</button></div>`).join("")}</div>
     ${logs.length?`<button class="link" onclick="copyLog()">Copiar todo el diario</button>`:""}</div>`;
@@ -994,7 +1002,7 @@ async function saveEnt(aid){
     catch(e){ toast(e&&e.code==="tool_error"?"Google no la aceptó: revisa la fecha":"No sé si se guardó: mira la agenda antes de repetir") }
     entBusy=false; render(); return;
   }
-  write("tareas",uid(),{t,fecha:x.d||null,cat:a.code,hecho:false,creado:new Date().toISOString()}); entNew={asig:null,t:"",d:"",cal:true}; toast("Entrega guardada ✓");
+  putDoc("tareas",uid(),{t,fecha:x.d||null,cat:a.code,hecho:false,creado:new Date().toISOString()}); entNew={asig:null,t:"",d:"",cal:true}; toast("Entrega guardada ✓");
 }
 
 /* --- Temas / ejercicios por asignatura --- */
@@ -1091,18 +1099,18 @@ function setAsig(id,patch){ saveEst({asig:asigs().map(a=>a.id===id?Object.assign
 const VTIPOS={vocab:{n:"Vocabulario",col:C.sky,dot:"🔵"},error:{n:"Errores",col:C.poppy,dot:"🔴"},frase:{n:"Frases",col:C.pool,dot:"🟢"}};
 const LEIT=[0,1,3,7,16,35];
 const ing=()=>Object.assign({meta:20,examen:"",recursos:[],rev:{}},S.app.ingles||{});
-function saveIng(patch){ write("app","ingles",Object.assign({},ing(),patch)) }
+function saveIng(patch){ putDoc("app","ingles",Object.assign({},ing(),patch)) }
 const ingMin=d=>Object.values(S.foco).filter(f=>f.materia==="Inglés"&&f.ymd===d).reduce((a,f)=>a+(f.min||0),0);
 const ingDay=d=>ingMin(d)>0||(ing().rev[d]||0)>0;
 function ingStreak(){ let n=0,d=new Date(); if(!ingDay(today())) d=addDays(d,-1); while(ingDay(ymd(d))){n++;d=addDays(d,-1)} return n }
 const dueCards=()=>Object.entries(S.vocab).filter(([k,v])=>(v.due||"")<=today());
 let vNew={w:"",m:"",ex:"",tipo:"vocab"}, vFilter="todas", rv=null, ingAct="Listening", recNew={t:"",url:""};
 function addVocab(){ const x=vNew; if(!x.w.trim()) return toast("Escribe la palabra o frase");
-  write("vocab",uid(),{w:x.w.trim(),m:x.m.trim(),ex:x.ex.trim(),tipo:x.tipo,box:1,due:today(),creado:new Date().toISOString()}); vNew={w:"",m:"",ex:"",tipo:x.tipo}; render() }
-function addIngMin(m){ write("foco",uid(),{ymd:today(),fecha:new Date().toISOString(),materia:"Inglés",min:m,act:ingAct}); toast(`+${m} min de inglés ✓`) }
+  putDoc("vocab",uid(),{w:x.w.trim(),m:x.m.trim(),ex:x.ex.trim(),tipo:x.tipo,box:1,due:today(),creado:new Date().toISOString()}); vNew={w:"",m:"",ex:"",tipo:x.tipo}; render() }
+function addIngMin(m){ putDoc("foco",uid(),{ymd:today(),fecha:new Date().toISOString(),materia:"Inglés",min:m,act:ingAct}); toast(`+${m} min de inglés ✓`) }
 function startReview(){ const q=dueCards().map(([k])=>k).sort(()=>Math.random()-.5); if(!q.length) return toast("Nada que repasar hoy 🎉"); rv={q,i:0,show:false,ok:0}; render() }
 function answer(ok){
-  const id=rv.q[rv.i], v=S.vocab[id]; if(v){ const box=ok?Math.min(5,(v.box||1)+1):1; write("vocab",id,Object.assign({},v,{box,due:ymd(addDays(new Date(),ok?LEIT[box]:1))})) }
+  const id=rv.q[rv.i], v=S.vocab[id]; if(v){ const box=ok?Math.min(5,(v.box||1)+1):1; putDoc("vocab",id,Object.assign({},v,{box,due:ymd(addDays(new Date(),ok?LEIT[box]:1))})) }
   const r=ing().rev, d=today(); saveIng({rev:Object.assign({},r,{[d]:(r[d]||0)+1})});
   if(ok) rv.ok++; rv.i++; rv.show=false; if(rv.i>=rv.q.length){ toast(`Repaso hecho: ${rv.ok}/${rv.q.length} ✓`); rv=null } render();
 }
@@ -1233,7 +1241,7 @@ function vBuscar(){
 /* ================= HOY ================= */
 const HOY_CARDS=[["cal","📅 Calendario de hoy"],["tareas","✅ Tareas para hoy"],["estudio","🎓 Estudio"],["ingles","🇬🇧 Inglés"],["gym","💪 Gym"],["habitos","🌱 Hábitos"],["comida","🥑 Comida de hoy"]];
 const hoyCfg=()=>{ const c=S.app.hoy||{}; const order=(c.order||[]).filter(k=>HOY_CARDS.some(x=>x[0]===k)); for(const [k] of HOY_CARDS) if(!order.includes(k)) order.push(k); return {order,hidden:c.hidden||[]} };
-function saveHoy(p){ write("app","hoy",Object.assign({},hoyCfg(),p)) }
+function saveHoy(p){ putDoc("app","hoy",Object.assign({},hoyCfg(),p)) }
 let hoyEdit=false;
 function hoyCard(k,d){
   const td=today();
@@ -1302,12 +1310,12 @@ const DEF_RUTINA=[
   {id:"finde",dia:"Fin de semana",t:"Carrera suave",col:C.pool,ex:[{n:"Carrera suave",cardio:25,help:"Empieza con 2 min correr + 1 min andar"}]}
 ];
 const rutina=()=>(S.app.rutina&&S.app.rutina.dias)||DEF_RUTINA;
-function saveRut(dias){ write("app","rutina",{dias:clone(dias)}) }
+function saveRut(dias){ putDoc("app","rutina",{dias:clone(dias)}) }
 let cfg=Object.assign({voz:true,pitidos:true},LS.get("gym_cfg",{}));
 let gv="home", W=null, timer=null, detailId=null, confirmArm=0, delArm=0;
 const sesList=()=>Object.values(S.sesiones).filter(s=>s&&s.fecha).sort((a,b)=>b.fecha.localeCompare(a.fecha));
 const spotifyUrl=()=>(S.app.gym&&S.app.gym.playlist)||"https://open.spotify.com/";
-function setPlaylist(v){ v=v.trim(); if(v&&!/^https:\/\/(open\.)?spotify\.(com|link)\//.test(v)) return toast("Pega un enlace de Spotify (Compartir → Copiar enlace)"); write("app","gym",Object.assign({},S.app.gym,{playlist:v||null})); toast(v?"Playlist guardada ✓":"Playlist quitada"); }
+function setPlaylist(v){ v=v.trim(); if(v&&!/^https:\/\/(open\.)?spotify\.(com|link)\//.test(v)) return toast("Pega un enlace de Spotify (Compartir → Copiar enlace)"); putDoc("app","gym",Object.assign({},S.app.gym,{playlist:v||null})); toast(v?"Playlist guardada ✓":"Playlist quitada"); }
 const spotBtn=(txt)=>`<a class="btn spot" href="${esc(spotifyUrl())}" target="_blank" rel="noopener">🎵 ${txt}</a>`;
 function todayId(){ return ["finde","lunes","martes","miercoles","jueves","viernes","finde"][new Date().getDay()] }
 function lastFor(n,ex){ for(const s of sesList()){ if(s.id===ex) continue; const e=(s.ej||[]).find(x=>x.n===n); if(e&&e.sets&&e.sets.length) return {sets:e.sets,fecha:s.fecha} } return null }
@@ -1364,7 +1372,7 @@ const cur=()=>W.R.ex[W.i], rec=()=>W.s.ej[W.i];
 function prefill(){ const e=cur(),done=rec().sets,last=lastFor(e.n,W.s.id),i=done.length;
   const p=done[i-1]||(last&&(last.sets[i]||last.sets[last.sets.length-1]))||null;
   W.kg=p?num(p.kg):0; W.kg2=p?num(p.kg2):0; W.reps=(done[i-1]&&done[i-1].reps)||parseInt(e.r)||10; }
-function saveW(){ LS.set("gym_actual",W.s); write("sesiones",W.s.id,W.s) }
+function saveW(){ LS.set("gym_actual",W.s); putDoc("sesiones",W.s.id,W.s) }
 function logSet(){
   const e=cur(),r=rec();
   if(e.cardio){ r.sets.push({min:e.cardio}); saveW(); return nextEx(true) }
@@ -1418,7 +1426,7 @@ function gProg(){
     <div class="card"><div class="head" style="background:${C.cotton}"><span class="cap">Peso corporal</span>${pesos.length?`<span class="cap">${kgTxt(pesos[pesos.length-1].kg)} kg</span>`:""}</div>
     ${spark(pesos.slice(-30).map(p=>p.kg),C.fuchsia)}
     ${pesos.length>1?`<div class="note">${(()=>{const d=pesos[pesos.length-1].kg-pesos[0].kg;return `${d<=0?"":"+"}${kgTxt(d)} kg desde el ${esc(fmtDay(parseYmd(pesos[0].ymd),{day:"numeric",month:"short"}))}`})()}</div>`:""}
-    <form class="row" style="margin-top:8px" onsubmit="event.preventDefault();const v=num(pesoNew);if(v>20){write('peso',today(),{ymd:today(),kg:v});pesoNew=''}else toast('Escribe tu peso en kg')">
+    <form class="row" style="margin-top:8px" onsubmit="event.preventDefault();const v=num(pesoNew);if(v>20){putDoc('peso',today(),{ymd:today(),kg:v});pesoNew=''}else toast('Escribe tu peso en kg')">
       <input inputmode="decimal" placeholder="Peso de hoy (kg)" value="${esc(pesoNew)}" oninput="pesoNew=this.value"><button class="btn small">Guardar</button></form>
     <div class="note">Solo se guarda uno por día; si repites hoy, se sustituye.</div></div>`;
   for(const R of rutina()){ const exs=R.ex.filter(e=>!e.cardio&&!e.nw&&!e.t); if(!exs.length) continue;

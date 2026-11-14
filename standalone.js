@@ -128,9 +128,31 @@
     }}
   };
 
+  /* ---------- IA para recetas en la web: Gemini (clave gratuita de Google AI Studio) ---------- */
+  const iaKey=()=>{ try{ return (typeof window.mdIAKey==="function"&&window.mdIAKey())||"" }catch(e){ return "" } };
+  const b64=blob=>new Promise((ok,ko)=>{ const r=new FileReader(); r.onload=()=>ok(String(r.result).split(",")[1]); r.onerror=ko; r.readAsDataURL(blob) });
+  async function gem(model,body,key){ const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); return r }
+  const GEM={
+    async limits(){ return {images:true,video:true} },
+    async json(prompt,opts){
+      const key=iaKey(); if(!key) throw {code:"not_granted",message:"Falta la clave de IA"};
+      const parts=[{text:prompt+"\nSi recibes un vídeo, míralo entero y escucha el audio: las cantidades y pasos dichos en voz alta también cuentan."}];
+      for(const im of (opts&&opts.images)||[]) parts.push({inline_data:{mime_type:im.type||"image/jpeg",data:await b64(im)}});
+      if(opts&&opts.video) parts.push({inline_data:{mime_type:opts.video.type||"video/mp4",data:await b64(opts.video)}});
+      const body={contents:[{role:"user",parts}],generationConfig:{responseMimeType:"application/json",temperature:0.2}};
+      let r=await gem("gemini-flash-latest",body,key);
+      if(r.status===404) r=await gem("gemini-2.5-flash",body,key);
+      if(r.status===400||r.status===403){ const t=await r.text(); throw {code:/API key|API_KEY/i.test(t)?"bad_key":"tool_error",message:t} }
+      if(r.status===429) throw {code:"rate_limited",message:"Demasiadas peticiones"};
+      if(!r.ok) throw {code:"unavailable",message:await r.text()};
+      const j=await r.json(); const txt=((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||"").join("");
+      return JSON.parse(txt.replace(/^```json|```$/g,"").trim());
+    }
+  };
+
   /* ---------- Arranque: configuración e inicio de sesión ---------- */
   let resolveReady; const ready=new Promise(r=>resolveReady=r);
-  window.claude={ use: name=>ready.then(()=>name==="db"?DB:name==="mcp"?(cfg().gid?MCP:null):null) };
+  window.claude={ use: name=>ready.then(()=>name==="db"?DB:name==="mcp"?(cfg().gid?MCP:null):name==="sample"?(iaKey()?GEM:null):null) };
   window.mdLogout=async function(){ try{ await sb.auth.signOut() }catch(e){} location.reload() };
 
   const SQL=`create table if not exists docs (

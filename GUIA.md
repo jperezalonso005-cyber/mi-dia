@@ -100,3 +100,16 @@ En el otro dispositivo (móvil u ordenador) solo tienes que repetir el paso 1 co
 - **Google cada hora:** el permiso de Google dura 1 hora. Si caduca, en la Agenda te sale **Conectar Google Calendar**. Un toque y vuelve, sin volver a pedirte permisos.
 - **Sin conexión:** la app funciona; los cambios se guardan cuando vuelve internet.
 - **Versión de Claude:** sigue funcionando a la vez, pero sus datos van aparte (están en Claude).
+
+---
+
+## 6. IA para leer recetas de vídeos (opcional, gratis)
+
+Sirve para que tu web vea los vídeos de TikTok o Instagram que guardes (también oye el audio) y saque la receta.
+
+1. Entra en **https://aistudio.google.com/apikey** con tu cuenta de Google.
+2. Pulsa **Create API key** (Crear clave) y elige el proyecto **Mi dia**.
+3. Copia la clave, que empieza por `AIza…`.
+4. En tu web, ve a **Más → Datos → IA para recetas (Gemini)**, pega la clave y listo.
+
+La clave se guarda en tu cuenta (solo para ti) y no está en GitHub. En el plan gratuito, Google puede usar lo que le mandas para mejorar sus modelos. Para recetas no importa, pero no la uses para cosas privadas.
