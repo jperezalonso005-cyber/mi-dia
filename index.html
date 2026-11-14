@@ -111,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794699368"></script>
-<script src="supabase.js?v=1794699368"></script>
-<script src="standalone.js?v=1794699368"></script>
+<script src="config.js?v=1794699443"></script>
+<script src="supabase.js?v=1794699443"></script>
+<script src="standalone.js?v=1794699443"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -822,7 +822,23 @@ function vRecetaDetalle(){
     ${pas.length?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Pasos</span></div>
       ${pas.map((x,i)=>`<div class="row" style="align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)"><b style="min-width:24px;color:var(--mute)">${i+1}</b><div>${esc(x)}</div></div>`).join("")}</div>`:""}
     <button class="btn ghost" style="margin-bottom:10px" onclick="editReceta('${r.id}')">✏️ Editar receta</button>
-    <div class="card"><div class="sub">Ponerla en el menú</div><div class="seg" style="flex-wrap:wrap">${DIAS.map(([d,dn])=>`<button onclick="setMeal('${d}','${r.tipo||"com"}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,3)}</button>`).join("")}</div></div>`;
+    `;
+}
+/* Elegir plato para el menú desde las recetas */
+let pick=null;
+function pickSheet(){
+  const k=pick.m, n=(MEALS.find(x=>x[0]===k)||[])[1], q=pick.q.trim().toLowerCase(), cur=(menu()[pick.d]||{})[k]||"";
+  const rs=recetas().filter(r=>!q||r.n.toLowerCase().includes(q)||String(r.ing||"").toLowerCase().includes(q));
+  const mine=rs.filter(r=>r.tipo===k), other=rs.filter(r=>r.tipo!==k);
+  const item=r=>`<button class="it" style="width:100%;text-align:left" onclick="setMeal(pick.d,pick.m,${esc(JSON.stringify(r.n))});pick=null;toast('${MEAL_IC[k]} Añadido al menú ✓')"><span class="grow"><b>${esc(r.n)}</b><div class="sub">${esc(ingList(r).slice(0,4).join(", "))}</div></span><span class="sub">${MEAL_IC[r.tipo]||""}</span></button>`;
+  return `<div class="card" style="border:2px solid var(--ink)"><div class="head" style="background:${C.daff}"><span class="cap">${MEAL_IC[k]} ${n} · ${esc((DIAS.find(d=>d[0]===pick.d)||[])[1]||"")}</span><button class="x" onclick="pick=null;render()">✕</button></div>
+    <input placeholder="Buscar receta o ingrediente…" value="${esc(pick.q)}" oninput="pick.q=this.value;clearTimeout(window._pq);window._pq=setTimeout(()=>{const p=this.selectionStart;render();const b=document.querySelector('[data-pq]');if(b){b.focus();b.setSelectionRange(p,p)}},250)" data-pq>
+    <div class="list" style="max-height:340px;overflow:auto;margin-top:6px">
+      ${mine.length?`<div class="sub" style="padding:6px 0">Recetas de ${n.toLowerCase()}</div>${mine.map(item).join("")}`:""}
+      ${other.length?`<div class="sub" style="padding:6px 0">Otras recetas</div>${other.map(item).join("")}`:""}
+      ${!rs.length?'<div class="sub" style="padding:8px 0">No hay recetas con eso.</div>':""}</div>
+    <form class="row" style="margin-top:8px" onsubmit="event.preventDefault();if(pick.txt.trim()){setMeal(pick.d,pick.m,pick.txt.trim());pick=null;render()}"><input placeholder="O escribe otra cosa (ej. Sobras)" value="${esc(pick.txt)}" oninput="pick.txt=this.value"><button class="btn small">OK</button></form>
+    ${cur?`<button class="link mute" onclick="setMeal(pick.d,pick.m,'');pick=null;render()">Quitar "${esc(cur)}"</button>`:""}</div>`;
 }
 function vRecetas(){
   if(recVer) return vRecetaDetalle();
@@ -835,9 +851,9 @@ function vRecetas(){
     <button class="btn small" onclick="if(recNew2.n.trim()){putDoc('recetas',uid(),{n:recNew2.n.trim(),ing:recNew2.ing.trim(),tipo:recNew2.tipo});recNew2={n:'',ing:'',tipo:recNew2.tipo}}else toast('Ponle nombre')">+ Guardar receta</button></div>
     ${MEALS.map(([k,n])=>{ const l=rs.filter(r=>r.tipo===k); return l.length?`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">${n}</span></div>
       <div class="list">${l.map(r=>`<div class="it" style="align-items:flex-start"><div class="grow"><b style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(r.n)} ›</b><div class="sub" style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(ingList(r).slice(0,6).join(", "))}${r.pasos?" · con pasos":""}</div>
-        <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:6px">${DIAS.map(([d,dn])=>`<button class="pill" style="background:var(--soft);color:var(--mute);font-size:11px" onclick="setMeal('${d}','${k}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,2)}</button>`).join("")}</div></div>
+        </div>
         <button class="x" onclick="${r.mia?`removeDoc('recetas','${r.id}')`:`putDoc('app','comida',{ocultas:[...((S.app.comida&&S.app.comida.ocultas)||[]),'${r.id}']})`}">✕</button></div>`).join("")}</div></div>`:"" }).join("")}
-    <div class="note">Toca un día debajo de una receta para ponerla en el menú.</div>`;
+    <div class="note">Para ponerlas en el menú, ve a Menú y toca una comida.</div>`;
 }
 function vComida(){
   let h=`<button class="link mute" onclick="go('mas')">‹ Más</button><h1>Comida</h1><div class="seg">${[["menu","Menú"],["compra","Compra"],["recetas","Recetas"]].map(([k,n])=>`<button class="${comTab===k?"on":""}" onclick="comTab='${k}';render()">${n}</button>`).join("")}</div>`;
@@ -846,9 +862,11 @@ function vComida(){
     const sel=menuDay||todayKey(), m=menu()[sel]||{};
     h+=`<div class="row" style="overflow-x:auto;gap:6px;padding-bottom:4px">${DIAS.map(([k,n],i)=>`<button class="pill" style="padding:8px 12px;font-size:13px;background:${k===sel?C.daff:"var(--soft)"};color:${k===sel?"#252D45":"var(--mute)"}" onclick="menuDay='${k}';render()">${n.slice(0,3)}</button>`).join("")}</div>
       <div class="card"><div class="head" style="background:${C.daff}"><span class="cap">${DIAS.find(d=>d[0]===sel)[1]}${sel===todayKey()?" · hoy":""}</span></div>
-      ${MEALS.map(([k,n])=>`<div class="meal"><span>${n}</span><input list="dl-${k}" value="${esc(m[k]||"")}" placeholder="—" onchange="setMeal('${sel}','${k}',this.value)"></div>`).join("")}</div>
-      ${MEALS.map(([k])=>`<datalist id="dl-${k}">${recetas().filter(r=>r.tipo===k).map(r=>`<option value="${esc(r.n)}">`).join("")}</datalist>`).join("")}
-      <div class="note">Escribe o elige una de tus recetas. Se guarda al salir de cada casilla.</div>
+      ${MEALS.map(([k,n])=>{ const v=m[k]||"", rec=recetas().find(r=>r.n===v);
+        return `<div class="meal"><span>${MEAL_IC[k]} ${n}</span><button style="text-align:left;padding:11px 12px;border-radius:12px;background:var(--soft);border:1px solid var(--line);min-height:44px;display:flex;justify-content:space-between;align-items:center" onclick="pick={d:'${sel}',m:'${k}',q:'',txt:''};render()"><span style="${v?"font-weight:600":"color:var(--mute)"}">${v?esc(v):"Elegir plato…"}</span><span class="sub">${rec?"📖":"›"}</span></button></div>` }).join("")}</div>
+      ${pick&&pick.d===sel?pickSheet():""}
+
+      <div class="note">Toca una comida para elegir un plato de tus recetas.</div>
       <button class="btn" style="margin-top:10px" onclick="genCompra()">🛒 Rellenar la lista de la compra con el menú</button>`;
   }else{
     const it=Object.entries(S.compra).sort((a,b)=>(a[1].hecho-b[1].hecho)||(a[1].creado||"").localeCompare(b[1].creado||""));
