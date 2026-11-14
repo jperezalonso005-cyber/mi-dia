@@ -39,7 +39,8 @@
   .head{border-radius:16px;padding:10px 14px;margin:-6px -6px 10px;color:#252D45;display:flex;justify-content:space-between;align-items:center}
   button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
   .btn{background:var(--night);color:#FBF7F0;border-radius:16px;padding:14px 18px;font-weight:700;font-size:16px;width:100%}
-  @media (prefers-color-scheme: dark){ .btn{background:var(--daff);color:#252D45} }
+  @media (prefers-color-scheme: dark){ html:not(.light) .btn{background:var(--daff);color:#252D45} }
+  html.dark .btn{background:var(--daff);color:#252D45}
   .btn.ok{background:var(--pool);color:#fff}
   .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
   .btn.small{width:auto;padding:9px 14px;font-size:14px;border-radius:12px}
@@ -84,7 +85,8 @@
   .center{text-align:center}
   .pbar{height:7px;background:rgba(37,45,69,.15);border-radius:7px;overflow:hidden;margin-top:10px}
   .pbar i{display:block;height:100%;background:var(--night)}
-  @media (prefers-color-scheme: dark){ .pbar{background:var(--line)} .pbar i{background:var(--daff)} }
+  @media (prefers-color-scheme: dark){ html:not(.light) .pbar{background:var(--line)} html:not(.light) .pbar i{background:var(--daff)} }
+  html.dark .pbar{background:var(--line)} html.dark .pbar i{background:var(--daff)}
   .sw{width:50px;height:30px;border-radius:30px;background:var(--line);position:relative;flex:none}
   .sw.on{background:var(--pool)}
   .sw::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:.15s}
@@ -109,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794671793"></script>
-<script src="supabase.js?v=1794671793"></script>
-<script src="standalone.js?v=1794671793"></script>
+<script src="config.js?v=1794697667"></script>
+<script src="supabase.js?v=1794697667"></script>
+<script src="standalone.js?v=1794697667"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -129,8 +131,63 @@ const fmtTime=d=>d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"})
 const num=v=>{const x=parseFloat(String(v).replace(",","."));return isNaN(x)?0:x};
 const kgTxt=x=>(Math.round(x*10)/10).toString().replace(".",",");
 const clone=o=>JSON.parse(JSON.stringify(o));
-const C={lav:"#DBC0E8",sky:"#A3C1E2",daff:"#F7E289",night:"#252D45",peach:"#FBB28B",poppy:"#F76F54",sage:"#A8AF95",
+const C0={lav:"#DBC0E8",sky:"#A3C1E2",daff:"#F7E289",night:"#252D45",peach:"#FBB28B",poppy:"#F76F54",sage:"#A8AF95",
   fuchsia:"#EA5E86",pool:"#47B5A8",cotton:"#F9A2C5",egg:"#6B515E",hay:"#B79A65"};
+const C=Object.assign({},C0);
+/* ---------- Apariencia: paletas, modo claro/oscuro y colores a mano ---------- */
+const KEYS=["lav","sky","daff","peach","poppy","sage","fuchsia","pool","cotton","egg","hay","night"];
+const KNAME={lav:"Lila",sky:"Azul",daff:"Amarillo",peach:"Melocotón",poppy:"Rojo",sage:"Verde suave",fuchsia:"Fucsia",pool:"Turquesa",cotton:"Rosa",egg:"Berenjena",hay:"Tierra",night:"Oscuro"};
+const PALETAS={
+  nordico:{n:"Pastel nórdico",c:C0,bg:"#FBF7F0"},
+  mia:{n:"Mi paleta",c:{lav:"#C8A2C8",sky:"#BFD7EA",daff:"#F6E27F",peach:"#F8C8B0",poppy:"#E8603C",sage:"#A3A86B",fuchsia:"#F28DB2",pool:"#5E9C76",cotton:"#C9E4C5",egg:"#7A5C8E",hay:"#C2A37E",night:"#2B2D42"},bg:"#FAF8F3"},
+  oceano:{n:"Océano",c:{lav:"#B8C6F0",sky:"#9FD3EC",daff:"#F3E6A8",peach:"#F6C3A6",poppy:"#EF6F6C",sage:"#9CC5B9",fuchsia:"#E58FB5",pool:"#2FA4A9",cotton:"#B6E2E8",egg:"#4E5D8C",hay:"#8FB3C9",night:"#1E2A3A"},bg:"#F4F8FB"},
+  atardecer:{n:"Atardecer",c:{lav:"#E3B7D2",sky:"#F2C6A0",daff:"#FFD982",peach:"#FFB38A",poppy:"#F2545B",sage:"#C9B79C",fuchsia:"#E86A92",pool:"#F28C38",cotton:"#FFC8C2",egg:"#8C4A5E",hay:"#D9A066",night:"#3A2632"},bg:"#FFF8F1"},
+  bosque:{n:"Bosque",c:{lav:"#C7C3E0",sky:"#B7D3C6",daff:"#E9DE9A",peach:"#E8C2A0",poppy:"#D7664F",sage:"#9DB58A",fuchsia:"#D98FA6",pool:"#4F8A6B",cotton:"#D5E8C4",egg:"#5B6B4E",hay:"#B59A6A",night:"#22302A"},bg:"#F6F7F1"},
+  suave:{n:"Gris suave",c:{lav:"#D9D6E6",sky:"#D3DEE8",daff:"#ECE6C8",peach:"#EBD8CB",poppy:"#D98880",sage:"#C9CFC2",fuchsia:"#DDB7C6",pool:"#8FB9B3",cotton:"#EAD9DE",egg:"#6E6A75",hay:"#CDBFA8",night:"#2E2E33"},bg:"#F7F7F5"}};
+const tema=()=>Object.assign({modo:"auto",paleta:"nordico",custom:{}},S.app.tema||{});
+let _temaSig="";
+function applyTheme(){
+  const t=tema(), sig=JSON.stringify(t); if(sig===_temaSig) return; _temaSig=sig;
+  const P=PALETAS[t.paleta]||PALETAS.nordico; Object.assign(C,C0,P.c,t.custom||{});
+  try{ if(typeof EVCOL!=="undefined") Object.assign(EVCOL,{"1":C.lav,"2":C.sage,"3":C.fuchsia,"4":C.cotton,"5":C.daff,"6":C.peach,"7":C.pool,"8":C.hay,"9":C.sky,"10":C.pool,"11":C.poppy}); }catch(e){}
+  try{ if(typeof HCOL!=="undefined") HCOL.splice(0,HCOL.length,C.pool,C.fuchsia,C.sky,C.hay,C.lav,C.poppy,C.sage,C.egg); }catch(e){}
+  try{ if(typeof VTIPOS!=="undefined"){ VTIPOS.vocab.col=C.sky; VTIPOS.error.col=C.poppy; VTIPOS.frase.col=C.pool } }catch(e){}
+  try{ if(typeof DEF_ASIG!=="undefined"){ const m={rxdet:"pool",ee:"peach",aa:"sage",mn:"lav"}; for(const a of DEF_ASIG) a.col=C[m[a.id]] } }catch(e){}
+  try{ if(typeof DEF_RUTINA!=="undefined"){ const m={lunes:"lav",martes:"sky",miercoles:"peach",jueves:"daff",viernes:"cotton",finde:"pool"}; for(const r of DEF_RUTINA) r.col=C[m[r.id]] } }catch(e){}
+  const R=document.documentElement, dark=t.modo==="oscuro"||(t.modo==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
+  R.classList.toggle("dark",t.modo==="oscuro"); R.classList.toggle("light",t.modo==="claro");
+  const v=dark?{"--bg":C.night==="#252D45"?"#1B2133":shade(C.night,-.25),"--card":C.night,"--ink":"#FBF7F0","--mute":"#A9AEC2","--line":shade(C.night,.12),"--soft":shade(C.night,.07)}
+             :{"--bg":t.custom&&t.custom.bg||P.bg,"--card":"#FFFFFF","--ink":C.night,"--mute":"#6B6F80","--line":"#ECE6DA","--soft":"#F3EEE4"};
+  for(const k of KEYS) R.style.setProperty("--"+k,C[k]);
+  for(const [k,x] of Object.entries(v)) R.style.setProperty(k,x);
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content",v["--bg"]);
+}
+function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=n>>16,g=(n>>8)&255,b=n&255; const f=x=>Math.max(0,Math.min(255,Math.round(amt>0?x+(255-x)*amt:x*(1+amt)))); return "#"+[f(r),f(g),f(b)].map(x=>x.toString(16).padStart(2,"0")).join("") }
+function remapStored(fromC,toC){ // pasa los colores guardados (asignaturas, rutina) de una paleta a otra
+  const inv={}; for(const k of KEYS) if(fromC[k]) inv[fromC[k].toLowerCase()]=k;
+  const tr=h=>{ const k=h&&inv[String(h).toLowerCase()]; return k?toC[k]:h };
+  if(S.app.estudio&&S.app.estudio.asig) saveEst({asig:asigs().map(a=>Object.assign({},a,{col:tr(a.col)}))});
+  if(S.app.rutina&&S.app.rutina.dias) saveRut(rutina().map(r=>Object.assign({},r,{col:tr(r.col)})));
+}
+function setTema(p){ const before=Object.assign({},C); const t=Object.assign({},tema(),p); write("app","tema",t); _temaSig=""; applyTheme(); remapStored(before,C); render() }
+function vTema(){
+  const t=tema();
+  return `<button class="link mute" onclick="go('mas')">‹ Más</button><h1>Apariencia</h1>
+    <div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Modo</span></div>
+      <div class="seg">${[["auto","Automático"],["claro","☀️ Claro"],["oscuro","🌙 Oscuro"]].map(([k,n])=>`<button class="${t.modo===k?"on":""}" onclick="setTema({modo:'${k}'})">${n}</button>`).join("")}</div>
+      <div class="note">Automático sigue el modo de tu móvil u ordenador.</div></div>
+    <div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Paleta</span></div>
+      ${Object.entries(PALETAS).map(([k,P])=>`<button style="display:block;width:100%;text-align:left;padding:10px;border-radius:14px;margin:6px 0;border:2px solid ${t.paleta===k?"var(--ink)":"var(--line)"};background:${P.bg}" onclick="setTema({paleta:'${k}',custom:{}})">
+        <div class="row between"><b style="color:#252D45">${P.n}</b>${t.paleta===k?'<span style="color:#252D45">✓</span>':""}</div>
+        <div class="row" style="gap:4px;margin-top:6px">${KEYS.map(c=>`<span style="flex:1;height:22px;border-radius:6px;background:${Object.assign({},C0,P.c)[c]}"></span>`).join("")}</div></button>`).join("")}</div>
+    <div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Cambiar colores a mano</span></div>
+      <div class="sub">Toca un color para cambiarlo. Afecta a toda la app.</div>
+      <div class="grid2" style="margin-top:8px">${KEYS.map(k=>`<label class="row" style="gap:8px;padding:6px;border-radius:12px;background:var(--soft)"><input type="color" value="${C[k]}" style="width:42px;height:34px;padding:0;border:0;background:none" onchange="setTema({custom:Object.assign({},tema().custom,{${k}:this.value})})"><span style="font-size:14px">${KNAME[k]}</span></label>`).join("")}
+        <label class="row" style="gap:8px;padding:6px;border-radius:12px;background:var(--soft)"><input type="color" value="${(t.custom&&t.custom.bg)||(PALETAS[t.paleta]||PALETAS.nordico).bg}" style="width:42px;height:34px;padding:0;border:0;background:none" onchange="setTema({custom:Object.assign({},tema().custom,{bg:this.value})})"><span style="font-size:14px">Fondo (claro)</span></label></div>
+      ${Object.keys(t.custom||{}).length?`<button class="link mute" onclick="setTema({custom:{}})">Quitar mis cambios de color</button>`:""}</div>
+    <div class="note">Se guarda en tu cuenta: lo verás igual en el móvil y en el ordenador.</div>`;
+}
+
 
 /* ================= ALMACÉN (db de Claude o el móvil) ================= */
 const COLS=["tareas","compra","habitoslog","app","sesiones","tfglog","foco","vocab","notas","peso","recetas"];
@@ -169,23 +226,26 @@ async function initDb(){
 let tab=LS.get("v2_tab","hoy"), pending=false, toastMsg="", toastT=null;
 const typing=()=>{const a=document.activeElement;return a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName)&&a.closest("#app")};
 function schedule(){ if(typing()){pending=true;return} render() }
+try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ _temaSig=""; render() }) }catch(e){}
 document.addEventListener("focusout",()=>setTimeout(()=>{ if(pending&&!typing()){pending=false;render()} },60));
 function toast(m){ toastMsg=m; render(); clearTimeout(toastT); toastT=setTimeout(()=>{toastMsg="";render()},2800) }
 function go(t){ tab=t; LS.set("v2_tab",t); render(); window.scrollTo(0,0) }
 
 const TABS=[["hoy","🏠","Hoy"],["agenda","📅","Agenda"],["estudio","🎓","Estudio"],["gym","💪","Gym"],["mas","☰","Más"]];
-const MAS=["mas","tareas","habitos","comida","resumen","buscar","ajustes"];
+const MAS=["mas","tareas","habitos","comida","resumen","buscar","ajustes","tema"];
 function vMas(){
   const it=[["tareas","✅","Tareas y notas",C.peach,()=>{const n=Object.values(S.tareas).filter(t=>!t.hecho).length;return n?n+" pendientes":"Al día"}],
     ["habitos","🌱","Hábitos",C.pool,()=>`${habs().filter(x=>hasHab(today(),x.id)).length}/${habs().length} hoy`],
     ["comida","🥑","Comida",C.daff,()=>{const m=menu()[todayKey()]||{};return m.com||m.cen?"Menú de hoy listo":"Sin menú hoy"}],
     ["resumen","📊","Resumen semanal",C.sky,()=>hTxt(minsWeek())+" de estudio"],
     ["buscar","🔍","Buscar",C.lav,()=>"En todo"],
+    ["tema","🎨","Apariencia",C.cotton,()=>(PALETAS[tema().paleta]||PALETAS.nordico).n],
     ["ajustes","⚙︎","Datos y copia",C.sage,()=>dbState==="ok"?"En tu cuenta":"En este móvil"]];
   return `<h1>Más</h1><div class="grid2" style="margin-top:12px">${it.map(([k,ic,n,col,sub])=>`<button class="day" style="background:${col};min-height:110px" onclick="go('${k}')"><div style="font-size:26px">${ic}</div><b style="text-transform:none;letter-spacing:0;margin-top:6px">${n}</b><span>${esc(sub())}</span></button>`).join("")}</div>`;
 }
 function render(){
-  const v={mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes}[tab]||vHoy;
+  applyTheme();
+  const v={tema:vTema,mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes}[tab]||vHoy;
   let h=v(); if(toastMsg) h+=`<div class="toast">${esc(toastMsg)}</div>`;
   document.getElementById("app").innerHTML=h;
   const pk=document.getElementById("pocket"); if(pk) pk.innerHTML=pocketHtml();
