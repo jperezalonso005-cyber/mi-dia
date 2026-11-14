@@ -7,7 +7,7 @@
   const LSK = "md_cfg";
   const get = (k,d)=>{ try{ const v=localStorage.getItem(k); return v==null?d:JSON.parse(v) }catch(e){ return d } };
   const set = (k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} };
-  const cfg = ()=>get(LSK,{});
+  const cfg = ()=>Object.assign({},window.MD_DEFAULTS||{},Object.fromEntries(Object.entries(get(LSK,{})).filter(([k,v])=>v!==""&&v!=null)));
   window.mdStandalone = true;
 
   /* ---------- Google: recoger el token al volver de la pantalla de Google ---------- */
