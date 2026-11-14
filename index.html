@@ -111,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794698875"></script>
-<script src="supabase.js?v=1794698875"></script>
-<script src="standalone.js?v=1794698875"></script>
+<script src="config.js?v=1794699155"></script>
+<script src="supabase.js?v=1794699155"></script>
+<script src="standalone.js?v=1794699155"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -704,6 +704,7 @@ function genCompra(){
 }
 /* ---------- Importar receta de TikTok/Instagram: texto del post o capturas ---------- */
 window.mdIAKey=()=>(S.app.ia&&S.app.ia.key)||"";
+window.mdIAStatus=t=>{ if(imp&&imp.busy){ imp.estado=t||"La IA está viendo el vídeo… (puede tardar 20-40 s)"; render() } };
 let imp={url:"",txt:"",fotos:[],busy:false,prev:null,err:"",estado:""}, recVer=null, sampleFn=null, sampleReady=false;
 async function getSample(){ if(sampleReady) return sampleFn; sampleReady=true; try{ sampleFn=await window.claude?.use?.("sample") ?? null }catch(e){ sampleFn=null } return sampleFn }
 const ingList=r=>String(r.ing||"").split(/\n|,(?![^(]*\))/).map(x=>x.trim()).filter(Boolean);
@@ -769,7 +770,7 @@ ${imp.txt.slice(0,6000)||"(sin texto)"}`;
   }catch(e){
     imp.busy=false;
     if(e&&e.code==="bad_key") imp.err="La clave de IA no es válida. Revísala en Más → Datos → IA para recetas.";
-    else if(e&&e.code==="rate_limited") imp.err="La IA gratuita está saturada ahora mismo. Prueba en un minuto.";
+    else if(e&&e.code==="rate_limited") imp.err="Gemini (la IA gratuita de Google) está saturado ahora mismo, incluso probando varios modelos. Espera unos minutos y pulsa «Volver a intentar»: el vídeo sigue cargado.";
     else if(e&&e.code==="empty") imp.err="No he encontrado una receta en ese vídeo. Si la explican hablando y el vídeo pesa mucho, pega también la descripción del post.";
     else if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); { render(); window.scrollTo(0,0); return } }
     else imp.err="No he podido leer la receta"+(e&&e.message?": "+String(e.message).slice(0,140):"")+". Prueba otra vez o con capturas.";

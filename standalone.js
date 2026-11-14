@@ -140,11 +140,21 @@
       for(const im of (opts&&opts.images)||[]) parts.push({inline_data:{mime_type:im.type||"image/jpeg",data:await b64(im)}});
       if(opts&&opts.video){ let mt=opts.video.type||"video/mp4"; if(/quicktime/i.test(mt)) mt="video/mov"; parts.push({inline_data:{mime_type:mt,data:await b64(opts.video)}}) }
       const body={contents:[{role:"user",parts}],generationConfig:{responseMimeType:"application/json",temperature:0.2}};
-      let r=await gem("gemini-flash-latest",body,key);
-      if(r.status===404) r=await gem("gemini-2.5-flash",body,key);
-      if(r.status===400||r.status===403){ const t=await r.text(); throw {code:/API key|API_KEY/i.test(t)?"bad_key":"tool_error",message:t} }
-      if(r.status===429) throw {code:"rate_limited",message:"Demasiadas peticiones"};
-      if(!r.ok) throw {code:"unavailable",message:await r.text()};
+      // Si un modelo está saturado (503/500/429) o no existe (404), espera un poco y prueba el siguiente
+      const MODELS=["gemini-flash-latest","gemini-2.5-flash","gemini-flash-lite-latest","gemini-2.5-flash-lite","gemini-2.0-flash"];
+      const sleep=ms=>new Promise(ok=>setTimeout(ok,ms));
+      let r=null, last="", busy=0;
+      for(let i=0;i<MODELS.length;i++){
+        if(typeof window.mdIAStatus==="function") window.mdIAStatus(i===0?"":"Gemini está saturado, probando otro modelo… ("+(i+1)+"/"+MODELS.length+")");
+        r=await gem(MODELS[i],body,key);
+        if(r.ok) break;
+        if(r.status===400||r.status===403){ const t=await r.text(); if(/API key|API_KEY|PERMISSION/i.test(t)) throw {code:"bad_key",message:t}; last=t; if(r.status===400) continue; throw {code:"tool_error",message:t} }
+        last=await r.text();
+        if(r.status===429||r.status>=500){ busy++; await sleep(1500+i*1000); continue }
+        if(r.status===404) continue;
+        break;
+      }
+      if(!r||!r.ok){ if(busy) throw {code:"rate_limited",message:"Todos los modelos de Gemini están saturados"}; throw {code:"unavailable",message:last.slice(0,200)} }
       const j=await r.json(); const txt=((j.candidates||[])[0]?.content?.parts||[]).map(p=>p.text||"").join("");
       return JSON.parse(txt.replace(/^```json|```$/g,"").trim());
     }
