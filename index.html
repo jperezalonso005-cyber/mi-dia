@@ -109,9 +109,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794671596"></script>
-<script src="supabase.js?v=1794671596"></script>
-<script src="standalone.js?v=1794671596"></script>
+<script src="config.js?v=1794671793"></script>
+<script src="supabase.js?v=1794671793"></script>
+<script src="standalone.js?v=1794671793"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -847,12 +847,53 @@ async function saveEnt(aid){
 /* --- Temas / ejercicios por asignatura --- */
 let temaNew={}, showTemasHechos={};
 function setTemas(aid,fn){ saveEst({asig:asigs().map(a=>{ if(a.id!==aid) return a; const t=clone(a.temas||[]); fn(t); return Object.assign({},a,{temas:t}) })}) }
+/* Elegir el día en que harás un tema: se guarda en el tema y, si quieres, se crea el bloque en el calendario */
+let tp=null, tpBusy=false;
+function openTemaPlan(aid,tid){ const a=asigs().find(x=>x.id===aid), t=a&&(a.temas||[]).find(y=>y.id===tid); if(!t) return;
+  tp={aid,tid,d:t.fecha||today(),h:t.hora||"",dur:t.dur||90,cal:!!mcp}; render() }
+function temaPlanForm(a,t){
+  return `<div style="padding:12px;border-radius:16px;background:var(--soft);margin:4px 0 8px">
+    <div class="sub" style="margin-bottom:6px">¿Qué día haces <b>${esc(t.n)}</b>?</div>
+    <div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:8px">${[0,1,2,3,4,5,6].map(i=>{const d=addDays(new Date(),i),k=ymd(d);return `<button class="pill" style="padding:7px 10px;font-size:12px;background:${tp.d===k?a.col:"var(--card)"};color:${tp.d===k?"#252D45":"var(--mute)"}" onclick="tp.d='${k}';render()">${i===0?"Hoy":i===1?"Mañana":esc(fmtDay(d,{weekday:"short",day:"numeric"}))}</button>`}).join("")}</div>
+    <div class="row"><input type="date" value="${tp.d}" onchange="tp.d=this.value;render()"><input type="time" value="${tp.h}" placeholder="auto" onchange="tp.h=this.value"></div>
+    <div class="note">Si no pones hora, busco el primer hueco libre de ese día.</div>
+    <div class="seg">${[[60,"1 h"],[90,"1 h 30"],[120,"2 h"]].map(([m,n])=>`<button class="${tp.dur===m?"on":""}" onclick="tp.dur=${m};render()">${n}</button>`).join("")}</div>
+    ${mcp?`<div class="row between"><span style="font-size:14px">Ponerlo en el calendario</span><button class="sw ${tp.cal?"on":""}" onclick="tp.cal=!tp.cal;render()"></button></div>`:""}
+    <div class="row" style="margin-top:10px"><button class="btn small" onclick="saveTemaPlan()">${tpBusy?"Guardando…":"Guardar"}</button>
+      ${t.fecha?`<button class="link mute" onclick="clearTemaPlan()">Quitar fecha</button>`:""}<button class="link mute" onclick="tp=null;render()">Cancelar</button></div></div>`;
+}
+async function saveTemaPlan(){
+  if(!tp||tpBusy) return; const a=asigs().find(x=>x.id===tp.aid), t=a&&(a.temas||[]).find(y=>y.id===tp.tid); if(!t) return;
+  const {aid,tid,d,dur}=tp; let h=tp.h, evId=t.ev||null;
+  if(tp.cal&&mcp){
+    tpBusy=true; render();
+    let a0,b0;
+    if(h){ a0=+h.slice(0,2)*60+ +h.slice(3,5); b0=a0+dur }
+    else{ const day=parseYmd(d), key="d"+d; if(rng[key]) rng[key].at=0; await loadRange(key,day,addDays(day,1));
+      const from=d===today()?new Date():day; const sl=nextSlot(dur,from,allEvents().filter(e=>e.id!==evId),evId);
+      if(sl&&sl.d===d){ a0=sl.a; b0=sl.b } else { a0=17*60; b0=a0+dur; toast("Ese día no hay hueco libre: lo pongo a las 17:00") } h=mm(a0) }
+    const inp={summary:`📚 ${a.code} · ${t.n}`,startTime:`${d}T${mm(a0)}:00`,endTime:`${d}T${mm(b0)}:00`,colorId:"9",useDefaultReminders:false};
+    try{ if(evId){ try{ await mcp.callTool(CAL,"update_event",Object.assign({eventId:evId},inp)) }catch(e){ if(e&&e.code==="tool_error") evId=null; else throw e } }
+      if(!evId){ const r=await mcp.callTool(CAL,"create_event",inp); evId=(r&&r.payload&&r.payload.id)||null }
+      await calChanged(); toast(`📅 ${t.n}: ${d===today()?"hoy":fmtDay(parseYmd(d),{weekday:"long",day:"numeric"})} a las ${mm(a0)} ✓`) }
+    catch(e){ tpBusy=false; render(); return toast(e&&e.code==="needs_google"?"Conecta Google Calendar en la Agenda":"No sé si se guardó en el calendario: mira la agenda") }
+    tpBusy=false;
+  } else toast(`📅 ${t.n} para el ${fmtDay(parseYmd(d),{weekday:"long",day:"numeric"})} ✓`);
+  setTemas(aid,T=>{const x=T.find(y=>y.id===tid); if(x){x.fecha=d;x.hora=h||"";x.dur=dur;x.ev=evId}}); tp=null; render();
+}
+async function clearTemaPlan(){
+  const a=asigs().find(x=>x.id===tp.aid), t=a&&(a.temas||[]).find(y=>y.id===tp.tid); if(!t) return;
+  if(t.ev&&mcp){ try{ await mcp.callTool(CAL,"delete_event",{eventId:t.ev}); await calChanged() }catch(e){} }
+  setTemas(tp.aid,T=>{const x=T.find(y=>y.id===tp.tid); if(x){delete x.fecha;delete x.hora;delete x.ev}}); tp=null; render();
+}
+function temasHoy(){ const out=[]; for(const a of asigs()) for(const t of (a.temas||[])) if(!t.done&&t.fecha&&t.fecha<=today()) out.push({a,t}); return out }
+
 function temasBox(a){
   const ts=a.temas||[], pend=ts.filter(t=>!t.done), done=ts.filter(t=>t.done);
   const row=t=>`<div class="it"><button class="chk ${t.done?"on":""}" style="${t.done?`background:${a.col}`:""}" onclick="setTemas('${a.id}',T=>{const x=T.find(y=>y.id==='${t.id}');x.done=!x.done;x.doneEl=x.done?today():null})">${t.done?"✓":""}</button>
-    <div class="grow ${t.done?"done-t":""}">${esc(t.n)}</div>
-    ${t.done?"":`<button class="btn small ghost" style="padding:5px 9px" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');if(i>0){const z=T[i];T.splice(i,1);T.unshift(z)}})" title="Hacer primero">⤒</button>`}
-    <button class="x" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');T.splice(i,1)})">✕</button></div>`;
+    <div class="grow ${t.done?"done-t":""}">${esc(t.n)}${t.fecha&&!t.done?`<div class="sub" style="font-size:12px;${t.fecha<today()?`color:${C.poppy}`:t.fecha===today()?`color:${C.pool};font-weight:700`:""}">📅 ${t.fecha===today()?"Hoy":esc(fmtDay(parseYmd(t.fecha),{weekday:"short",day:"numeric",month:"short"}))}${t.hora?" · "+t.hora:""}</div>`:""}</div>
+    ${t.done?"":`<button class="btn small ghost" style="padding:5px 9px" onclick="openTemaPlan('${a.id}','${t.id}')" title="Elegir día">📅</button><button class="btn small ghost" style="padding:5px 9px" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');if(i>0){const z=T[i];T.splice(i,1);T.unshift(z)}})" title="Hacer primero">⤒</button>`}
+    <button class="x" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');T.splice(i,1)})">✕</button></div>${tp&&tp.aid===a.id&&tp.tid===t.id?temaPlanForm(a,t):""}`;
   return `<div style="margin-top:8px" class="row between"><b>Temas y ejercicios</b><span class="sub">${done.length}/${ts.length}</span></div>
     ${ts.length?`<div class="pbar" style="background:var(--soft);margin-top:4px"><i style="width:${100*done.length/ts.length}%;background:${a.col}"></i></div>`:""}
     <div class="list">${pend.map(row).join("")||(ts.length?'<div class="sub" style="padding:6px 0">¡Todo hecho! 🎉</div>':'<div class="sub" style="padding:6px 0">Añade los temas o bloques de ejercicios que tienes que estudiar.</div>')}</div>
@@ -972,6 +1013,7 @@ function vEstudio(){
 }
 function hoyEstudio(){
   const t=tfg(); const items=[];
+  for(const {a,t:x} of temasHoy()) items.push([x.fecha<today()?0:1,`${x.fecha<today()?"⚠️ Atrasado":"📚 Hoy"}: ${x.n} (${a.code})${x.hora&&x.fecha===today()?" · "+x.hora:""}`]);
   if(t.reunion){ const r=new Date(t.reunion); if(r>new Date()) items.push([r.getTime(),`👥 Reunión TFG · ${dTxt(daysTo(ymd(r)))} ${fmtTime(r)}`]) }
   if(t.entrega&&daysTo(t.entrega)>=0) items.push([parseYmd(t.entrega).getTime(),`🎓 Entrega TFG · ${dTxt(daysTo(t.entrega))}`]);
   for(const a of asigs()){ if(a.examen&&daysTo(a.examen)>=0) items.push([parseYmd(a.examen).getTime(),`📚 Examen ${a.code} · ${dTxt(daysTo(a.examen))}`]);
