@@ -138,7 +138,7 @@
       const key=iaKey(); if(!key) throw {code:"not_granted",message:"Falta la clave de IA"};
       const parts=[{text:prompt+"\nSi recibes un vídeo, míralo entero y escucha el audio: las cantidades y pasos dichos en voz alta también cuentan."}];
       for(const im of (opts&&opts.images)||[]) parts.push({inline_data:{mime_type:im.type||"image/jpeg",data:await b64(im)}});
-      if(opts&&opts.video) parts.push({inline_data:{mime_type:opts.video.type||"video/mp4",data:await b64(opts.video)}});
+      if(opts&&opts.video){ let mt=opts.video.type||"video/mp4"; if(/quicktime/i.test(mt)) mt="video/mov"; parts.push({inline_data:{mime_type:mt,data:await b64(opts.video)}}) }
       const body={contents:[{role:"user",parts}],generationConfig:{responseMimeType:"application/json",temperature:0.2}};
       let r=await gem("gemini-flash-latest",body,key);
       if(r.status===404) r=await gem("gemini-2.5-flash",body,key);

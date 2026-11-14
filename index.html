@@ -111,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794698211"></script>
-<script src="supabase.js?v=1794698211"></script>
-<script src="standalone.js?v=1794698211"></script>
+<script src="config.js?v=1794698605"></script>
+<script src="supabase.js?v=1794698605"></script>
+<script src="standalone.js?v=1794698605"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -703,7 +703,7 @@ function genCompra(){
 }
 /* ---------- Importar receta de TikTok/Instagram: texto del post o capturas ---------- */
 window.mdIAKey=()=>(S.app.ia&&S.app.ia.key)||"";
-let imp={url:"",txt:"",fotos:[],busy:false,prev:null}, recVer=null, sampleFn=null, sampleReady=false;
+let imp={url:"",txt:"",fotos:[],busy:false,prev:null,err:"",estado:""}, recVer=null, sampleFn=null, sampleReady=false;
 async function getSample(){ if(sampleReady) return sampleFn; sampleReady=true; try{ sampleFn=await window.claude?.use?.("sample") ?? null }catch(e){ sampleFn=null } return sampleFn }
 const ingList=r=>String(r.ing||"").split(/\n|,(?![^(]*\))/).map(x=>x.trim()).filter(Boolean);
 const pasosList=r=>String(r.pasos||"").split(/\n/).map(x=>x.replace(/^\s*(\d+[\.\)-]|[-•*])\s*/,"").trim()).filter(Boolean);
@@ -722,57 +722,78 @@ function parseRecetaTexto(t){
 /* Sacar fotogramas de un vídeo guardado en el móvil (se hace en el propio móvil, no se sube a ningún sitio) */
 async function framesDeVideo(file,max){
   const url=URL.createObjectURL(file), v=document.createElement("video");
-  v.muted=true; v.playsInline=true; v.preload="auto"; v.src=url;
-  await new Promise((ok,ko)=>{ v.onloadedmetadata=ok; v.onerror=()=>ko(new Error("vídeo")); setTimeout(()=>ko(new Error("tiempo")),15000) });
-  const dur=v.duration&&isFinite(v.duration)?v.duration:30, n=Math.max(4,Math.min(max,Math.round(dur/4)));
-  const W=Math.min(720,v.videoWidth||720), H=Math.round(W*((v.videoHeight||1280)/(v.videoWidth||720)));
-  const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const cx=cv.getContext("2d"); const out=[];
-  for(let i=0;i<n;i++){ const t=Math.min(dur-0.1,(dur*(i+0.5))/n);
-    await new Promise(ok=>{ v.onseeked=ok; v.currentTime=t; setTimeout(ok,4000) });
-    cx.drawImage(v,0,0,W,H); const b=await new Promise(ok=>cv.toBlob(ok,"image/jpeg",0.72)); if(b) out.push(b) }
-  URL.revokeObjectURL(url); return out;
+  v.muted=true; v.playsInline=true; v.setAttribute("playsinline",""); v.preload="auto"; v.src=url;
+  v.style.cssText="position:fixed;left:-9999px;top:0;width:2px;height:2px;opacity:0"; document.body.appendChild(v);
+  try{
+    await new Promise((ok,ko)=>{ v.onloadeddata=ok; v.onerror=()=>ko(new Error("vídeo")); setTimeout(()=>ko(new Error("tiempo")),20000); try{ v.load() }catch(e){} });
+    try{ await v.play(); v.pause() }catch(e){}
+    const dur=v.duration&&isFinite(v.duration)?v.duration:30, n=Math.max(4,Math.min(max,Math.round(dur/4)));
+    const W=Math.min(720,v.videoWidth||720), H=Math.round(W*((v.videoHeight||1280)/(v.videoWidth||720)));
+    const cv=document.createElement("canvas"); cv.width=W; cv.height=H; const cx=cv.getContext("2d"); const out=[];
+    for(let i=0;i<n;i++){ const t=Math.min(dur-0.1,(dur*(i+0.5))/n);
+      await new Promise(ok=>{ v.onseeked=ok; v.currentTime=t; setTimeout(ok,4000) });
+      cx.drawImage(v,0,0,W,H); const blob=await new Promise(ok=>cv.toBlob(ok,"image/jpeg",0.72)); if(blob) out.push(blob) }
+    return out;
+  } finally { URL.revokeObjectURL(url); v.remove() }
 }
 async function addVideo(inp){
-  const f=inp.files&&inp.files[0]; if(!f) return; imp.busy=true; imp.vid=f.name; imp.vfile=f; render();
-  try{ const fr=await framesDeVideo(f,10); imp.fotos=[...imp.fotos.filter(x=>!x._v),...fr.map(b=>(b._v=1,b))].slice(0,12); toast(`🎬 ${fr.length} fotogramas sacados del vídeo`) }
-  catch(e){ toast("No he podido leer ese vídeo; prueba con capturas") }
-  imp.busy=false; render();
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  imp.err=""; imp.vid=f.name; imp.vfile=f; imp.busy=true; imp.estado="Preparando el vídeo…"; render();
+  try{ const fr=await framesDeVideo(f,10); imp.fotos=[...imp.fotos.filter(x=>!x._v),...fr.map(b=>(b._v=1,b))].slice(0,12) }catch(e){}
+  imp.busy=false; await importReceta();
 }
 async function importReceta(){
-  if(imp.busy) return; if(!imp.txt.trim()&&!imp.fotos.length) return toast("Pega el texto del post o añade capturas");
+  if(imp.busy) return; imp.err="";
+  if(!imp.txt.trim()&&!imp.fotos.length&&!imp.vfile){ imp.err="Sube el vídeo, añade capturas o pega el texto del post."; return render() }
   const sp=await getSample();
-  if(!sp){ if(!imp.txt.trim()) return toast("Sin Claude no puedo leer fotos ni vídeos: pega el texto"); imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); render(); return }
-  imp.busy=true; render();
-  const prompt=`Eres un asistente de cocina. A partir del texto y/o las imágenes de una receta de TikTok o Instagram (pueden ser capturas o fotogramas de un vídeo, en orden de tiempo: fíjate en el texto que aparece en pantalla, en los ingredientes que se ven y en lo que hacen en cada momento para deducir los pasos), devuelve SOLO un JSON con esta forma:
+  if(!sp){ if(!imp.txt.trim()){ imp.err=window.mdStandalone?"Para leer vídeos falta tu clave de IA: Más → Datos → IA para recetas.":"No puedo leer el vídeo aquí: pega el texto del post."; return render() }
+    imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); return guardarImp(true) }
+  let lim=null; try{ lim=await sp.limits() }catch(e){}
+  const useVideo=!!(lim&&lim.video&&imp.vfile&&imp.vfile.size<14e6);
+  if(!useVideo&&!imp.fotos.length&&!imp.txt.trim()){ imp.err="No he podido sacar imágenes de ese vídeo. Prueba con capturas de pantalla o pega el texto del post."; return render() }
+  imp.busy=true; imp.estado=useVideo?"La IA está viendo el vídeo… (puede tardar 20-40 s)":"Leyendo la receta…"; render();
+  const prompt=`Eres un asistente de cocina. A partir del texto, las imágenes y/o el vídeo de una receta de TikTok o Instagram (las imágenes pueden ser capturas o fotogramas del vídeo en orden de tiempo: fíjate en el texto que aparece en pantalla, en los ingredientes que se ven y en lo que hacen para deducir los pasos), devuelve SOLO un JSON con esta forma:
 {"n":"nombre corto de la receta en español","tipo":"des"|"com"|"cen","raciones":número o null,"ing":["cantidad + ingrediente", ...],"pasos":["paso 1", ...],"keto":"una frase: si es apta para dieta keto y qué cambiar si no lo es"}
 Reglas: ingredientes en español, uno por elemento, con cantidad si aparece; pasos claros y cortos; no inventes ingredientes que no aparezcan (si faltan cantidades, déjalas sin cantidad). tipo: des=desayuno, com=comida, cen=cena (elige el más lógico).
 TEXTO DEL POST:
-${imp.txt.slice(0,6000)||"(sin texto, mira las capturas)"}`;
+${imp.txt.slice(0,6000)||"(sin texto)"}`;
   try{
-    let lim=null; try{ lim=await sp.limits() }catch(e){}
-    const opts={modelTier:"default"}; if(imp.fotos.length&&lim&&lim.images) opts.images=imp.fotos;
-    if(lim&&lim.video&&imp.vfile&&imp.vfile.size<18e6){ opts.video=imp.vfile; opts.images=imp.fotos.filter(x=>!x._v) }
+    const opts={modelTier:"default"};
+    if(useVideo){ opts.video=imp.vfile; const caps=imp.fotos.filter(x=>!x._v); if(caps.length) opts.images=caps }
+    else if(imp.fotos.length&&lim&&lim.images) opts.images=imp.fotos;
     const v=await sp.json(prompt,opts);
+    if(!v||!(v.ing&&v.ing.length)&&!(v.pasos&&v.pasos.length)) throw {code:"empty"};
     imp.prev={n:v.n||"Receta",tipo:["des","com","cen"].includes(v.tipo)?v.tipo:"com",ing:(v.ing||[]).join("\n"),pasos:(v.pasos||[]).join("\n"),keto:v.keto||"",raciones:v.raciones||null,fuente:imp.url};
-  }catch(e){ if(e&&e.code==="bad_key"){ imp.busy=false; render(); return toast("La clave de IA no es válida: revísala en Más → Datos") }
-    if(e&&e.code==="rate_limited"){ imp.busy=false; render(); return toast("La IA gratuita está saturada: prueba en un minuto") }
-    if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); toast("No he podido usar Claude; la he sacado del texto") } else toast(e&&e.code==="not_granted"?"Esta versión no puede leer fotos":"No he podido leerla, prueba otra vez") }
-  imp.busy=false; render();
+    imp.busy=false; return guardarImp(true);
+  }catch(e){
+    imp.busy=false;
+    if(e&&e.code==="bad_key") imp.err="La clave de IA no es válida. Revísala en Más → Datos → IA para recetas.";
+    else if(e&&e.code==="rate_limited") imp.err="La IA gratuita está saturada ahora mismo. Prueba en un minuto.";
+    else if(e&&e.code==="empty") imp.err="No he encontrado una receta en ese vídeo. Si la explican hablando y el vídeo pesa mucho, pega también la descripción del post.";
+    else if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); return guardarImp(true) }
+    else imp.err="No he podido leer la receta"+(e&&e.message?": "+String(e.message).slice(0,140):"")+". Prueba otra vez o con capturas.";
+    render();
+  }
 }
-function guardarImp(){ const p=imp.prev; if(!p||!p.n.trim()) return; putDoc("recetas",uid(),{n:p.n.trim(),ing:p.ing.trim(),pasos:p.pasos.trim(),tipo:p.tipo,keto:p.keto||"",fuente:p.fuente||"",raciones:p.raciones||null,creado:new Date().toISOString()});
-  imp={url:"",txt:"",fotos:[],busy:false,prev:null,vid:null,vfile:null}; toast("Receta guardada ✓") }
+function guardarImp(auto){ const p=imp.prev; if(!p||!p.n.trim()) return;
+  const id=p.editId||uid(); const prevDoc=(p.editId&&S.recetas[p.editId])||{};
+  putDoc("recetas",id,Object.assign({},prevDoc,{n:p.n.trim(),ing:String(p.ing).trim(),pasos:String(p.pasos||"").trim(),tipo:p.tipo,keto:p.keto||"",fuente:p.fuente||"",raciones:p.raciones||null,creado:prevDoc.creado||new Date().toISOString()}));
+  imp={url:"",txt:"",fotos:[],busy:false,prev:null,vid:null,vfile:null,err:""}; recVer=id; window.scrollTo(0,0);
+  toast(p.editId?"Cambios guardados ✓":"Receta guardada ✓"); render() }
+function editReceta(id){ const r=recetas().find(x=>x.id===id); if(!r) return;
+  imp.prev={n:r.n,tipo:r.tipo||"com",ing:ingList(r).join("\n"),pasos:pasosList(r).join("\n"),keto:r.keto||"",raciones:r.raciones||null,fuente:r.fuente||"",editId:r.mia?r.id:null}; recVer=null; render() }
 function compraDe(r){ const have=new Set(Object.values(S.compra).filter(x=>!x.hecho).map(x=>x.t.trim().toLowerCase())); let n=0;
   for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ putDoc("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true}); have.add(i.toLowerCase()); n++ }
   toast(n?`🛒 ${n} ingredientes añadidos a la compra`:"Ya estaban todos en la lista") }
 function vImport(){
   const p=imp.prev;
-  if(p) return `<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Revisa y guarda</span></div>
+  if(p) return `<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">${p.editId?"Editar receta":"Revisa y guarda"}</span></div>
     <input value="${esc(p.n)}" oninput="imp.prev.n=this.value">
     <div class="seg">${MEALS.map(([k,n])=>`<button class="${p.tipo===k?"on":""}" onclick="imp.prev.tipo='${k}';render()">${n}</button>`).join("")}</div>
     ${p.keto?`<div class="note" style="color:var(--ink)">🥑 ${esc(p.keto)}</div>`:""}
     <div class="sub" style="margin-top:8px">Ingredientes (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.ing=this.value">${esc(p.ing)}</textarea>
     <div class="sub" style="margin-top:8px">Pasos (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.pasos=this.value">${esc(p.pasos)}</textarea>
-    <div class="row" style="margin-top:10px"><button class="btn small" onclick="guardarImp()">Guardar receta</button><button class="link mute" onclick="imp.prev=null;render()">Atrás</button></div></div>`;
+    <div class="row" style="margin-top:10px"><button class="btn small" onclick="guardarImp()">${p.editId?"Guardar cambios":"Guardar receta"}</button><button class="link mute" onclick="imp.prev=null;render()">Atrás</button></div></div>`;
   return `<div class="card"><div class="head" style="background:${C.fuchsia};color:#fff"><span class="cap">✨ Importar de TikTok / Instagram</span></div>
     <input placeholder="Enlace del vídeo (opcional, para guardarlo)" value="${esc(imp.url)}" oninput="imp.url=this.value">
     <textarea style="margin-top:6px;min-height:90px" placeholder="Pega aquí la descripción del post (donde suelen estar los ingredientes y pasos)" oninput="imp.txt=this.value">${esc(imp.txt)}</textarea>
@@ -780,7 +801,9 @@ function vImport(){
       <label class="btn small ghost" style="cursor:pointer">🎬 Subir el vídeo${imp.vid?" ✓":""}<input type="file" accept="video/*" style="display:none" onchange="addVideo(this)"></label>
       <label class="btn small ghost" style="cursor:pointer">📷 Capturas${imp.fotos.filter(x=>!x._v).length?` (${imp.fotos.filter(x=>!x._v).length})`:""}<input type="file" accept="image/*" multiple style="display:none" onchange="imp.fotos=[...imp.fotos,...this.files].slice(0,12);render()"></label>
       ${imp.fotos.length?`<button class="link mute" onclick="imp.fotos=[];imp.vid=null;render()">Quitar</button>`:""}</div>`:""}
-    <button class="btn" style="margin-top:10px" onclick="importReceta()">${imp.busy?"Leyendo la receta…":"Sacar la receta"}</button>
+    ${imp.busy?`<div class="tile" style="background:${C.daff};margin:10px 0 0;padding:12px">⏳ ${esc(imp.estado||"Leyendo la receta…")}</div>`:""}
+    ${imp.err?`<div class="tile" style="background:${C.peach};margin:10px 0 0;padding:12px">${esc(imp.err)}</div>`:""}
+    ${imp.busy?"":`<button class="btn" style="margin-top:10px" onclick="importReceta()">${imp.vfile||imp.fotos.length?"Volver a intentar":"Sacar la receta"}</button>`}
     <div class="note">${sampleFn&&window.mdStandalone?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo; Instagram: grabación de pantalla) y súbelo: la IA lo ve y oye el audio. Si pesa más de 18 MB, uso fotogramas.":!sampleFn&&window.mdStandalone?"Para subir vídeos o capturas, añade tu clave gratuita de IA en Más → Datos.":sampleFn?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo) y súbelo aquí: saco fotogramas y Claude lee lo que sale en pantalla. El audio no lo oye, así que si la receta solo se dice hablando, pega también la descripción.":"En esta versión leo el texto pegado. Para capturas o textos liosos, mándaselos a Claude en el chat y pega aquí lo que te devuelva."}</div></div>`;
 }
 function vRecetaDetalle(){
@@ -794,6 +817,7 @@ function vRecetaDetalle(){
       <button class="btn" style="margin-top:10px" onclick="compraDe(recetas().find(x=>x.id==='${r.id}'))">🛒 Añadir a la lista de la compra</button></div>
     ${pas.length?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Pasos</span></div>
       ${pas.map((x,i)=>`<div class="row" style="align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)"><b style="min-width:24px;color:var(--mute)">${i+1}</b><div>${esc(x)}</div></div>`).join("")}</div>`:""}
+    <button class="btn ghost" style="margin-bottom:10px" onclick="editReceta('${r.id}')">✏️ Editar receta</button>
     <div class="card"><div class="sub">Ponerla en el menú</div><div class="seg" style="flex-wrap:wrap">${DIAS.map(([d,dn])=>`<button onclick="setMeal('${d}','${r.tipo||"com"}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,3)}</button>`).join("")}</div></div>`;
 }
 function vRecetas(){
