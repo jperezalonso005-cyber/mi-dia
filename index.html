@@ -38,9 +38,8 @@
   .tile .sub{color:#252D45;opacity:.7}
   .head{border-radius:16px;padding:10px 14px;margin:-6px -6px 10px;color:#252D45;display:flex;justify-content:space-between;align-items:center}
   button{font:inherit;color:inherit;border:0;cursor:pointer;background:none}
-  .btn{background:var(--night);color:#FBF7F0;border-radius:16px;padding:14px 18px;font-weight:700;font-size:16px;width:100%}
-  @media (prefers-color-scheme: dark){ html:not(.light) .btn{background:var(--daff);color:#252D45} }
-  html.dark .btn{background:var(--daff);color:#252D45}
+  .btn{background:var(--btn,var(--night));color:var(--btnt,#FBF7F0);border-radius:16px;padding:14px 18px;font-weight:700;font-size:16px;width:100%}
+
   .btn.ok{background:var(--pool);color:#fff}
   .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
   .btn.small{width:auto;padding:9px 14px;font-size:14px;border-radius:12px}
@@ -69,7 +68,7 @@
   .ev .bar{width:5px;border-radius:5px;flex:none}
   .ev .time{font-size:13px;color:var(--mute);min-width:46px;font-variant-numeric:tabular-nums}
   .daylbl{font-weight:800;margin:16px 0 4px;text-transform:capitalize}
-  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);
+  .tabs{position:fixed;left:0;right:0;bottom:0;background:var(--tabs,var(--card));border-top:1px solid var(--line);
     padding:8px 6px calc(env(safe-area-inset-bottom) + 8px);display:flex;justify-content:space-around;z-index:5}
   .tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--mute);padding:4px 8px;border-radius:12px;min-width:58px}
   .tabs button .ic{font-size:20px;line-height:1}
@@ -116,9 +115,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794699600"></script>
-<script src="supabase.js?v=1794699600"></script>
-<script src="standalone.js?v=1794699600"></script>
+<script src="config.js?v=1794699877"></script>
+<script src="supabase.js?v=1794699877"></script>
+<script src="standalone.js?v=1794699877"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -156,17 +155,27 @@ function applyTheme(){
   const P=PALETAS[t.paleta]||PALETAS.nordico; Object.assign(C,C0,P.c,t.custom||{});
   try{ if(typeof EVCOL!=="undefined") Object.assign(EVCOL,{"1":C.lav,"2":C.sage,"3":C.fuchsia,"4":C.cotton,"5":C.daff,"6":C.peach,"7":C.pool,"8":C.hay,"9":C.sky,"10":C.pool,"11":C.poppy}); }catch(e){}
   try{ if(typeof HCOL!=="undefined") HCOL.splice(0,HCOL.length,C.pool,C.fuchsia,C.sky,C.hay,C.lav,C.poppy,C.sage,C.egg); }catch(e){}
-  try{ if(typeof VTIPOS!=="undefined"){ VTIPOS.vocab.col=C.sky; VTIPOS.error.col=C.poppy; VTIPOS.frase.col=C.pool } }catch(e){}
+  try{ if(typeof VTIPOS!=="undefined"){ const ro=t.roles||{}; VTIPOS.vocab.col=ro["ing:vocab"]||C.sky; VTIPOS.error.col=ro["ing:error"]||C.poppy; VTIPOS.frase.col=ro["ing:frase"]||C.pool } }catch(e){}
   try{ if(typeof DEF_ASIG!=="undefined"){ const m={rxdet:"pool",ee:"peach",aa:"sage",mn:"lav"}; for(const a of DEF_ASIG) a.col=C[m[a.id]] } }catch(e){}
   try{ if(typeof DEF_RUTINA!=="undefined"){ const m={lunes:"lav",martes:"sky",miercoles:"peach",jueves:"daff",viernes:"cotton",finde:"pool"}; for(const r of DEF_RUTINA) r.col=C[m[r.id]] } }catch(e){}
   const R=document.documentElement, dark=t.modo==="oscuro"||(t.modo==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
   R.classList.toggle("dark",t.modo==="oscuro"); R.classList.toggle("light",t.modo==="claro");
   const v=dark?{"--bg":C.night==="#252D45"?"#1B2133":shade(C.night,-.25),"--card":C.night,"--ink":"#FBF7F0","--mute":"#A9AEC2","--line":shade(C.night,.12),"--soft":shade(C.night,.07)}
              :{"--bg":t.custom&&t.custom.bg||P.bg,"--card":"#FFFFFF","--ink":C.night,"--mute":"#6B6F80","--line":"#ECE6DA","--soft":"#F3EEE4"};
+  const ro=t.roles||{};
+  if(ro["ui:bg"]&&!dark) v["--bg"]=ro["ui:bg"]; if(ro["ui:bgd"]&&dark) v["--bg"]=ro["ui:bgd"];
+  if(ro["ui:card"]&&!dark) v["--card"]=ro["ui:card"]; if(ro["ui:text"]&&!dark) v["--ink"]=ro["ui:text"];
+  const btn=ro["ui:btn"]||(dark?C.daff:C.night); v["--btn"]=btn; v["--btnt"]=txtOn(btn);
+  v["--tabs"]=ro["ui:tabs"]||v["--card"];
   for(const k of KEYS) R.style.setProperty("--"+k,C[k]);
   for(const [k,x] of Object.entries(v)) R.style.setProperty(k,x);
   const m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content",v["--bg"]);
 }
+const roles=()=>tema().roles||{};
+function RC(role,key){ const r=roles()[role]; return r||(C[key]||key) }
+function txtOn(hex){ try{ const n=parseInt(String(hex).slice(1),16), r=n>>16,g=(n>>8)&255,b=n&255; return (0.299*r+0.587*g+0.114*b)>150?"#252D45":"#FFFFFF" }catch(e){ return "#252D45" } }
+function hs(role,key){ const c=RC(role,key); return `background:${c};color:${txtOn(c)}` }
+function setRole(role,val){ const r=Object.assign({},roles()); if(val) r[role]=val; else delete r[role]; setTema({roles:r}) }
 function shade(hex,amt){ const n=parseInt(hex.slice(1),16); let r=n>>16,g=(n>>8)&255,b=n&255; const f=x=>Math.max(0,Math.min(255,Math.round(amt>0?x+(255-x)*amt:x*(1+amt)))); return "#"+[f(r),f(g),f(b)].map(x=>x.toString(16).padStart(2,"0")).join("") }
 function remapStored(fromC,toC){ // pasa los colores guardados (asignaturas, rutina) de una paleta a otra
   const inv={}; for(const k of KEYS) if(fromC[k]) inv[fromC[k].toLowerCase()]=k;
@@ -175,6 +184,40 @@ function remapStored(fromC,toC){ // pasa los colores guardados (asignaturas, rut
   if(S.app.rutina&&S.app.rutina.dias) saveRut(rutina().map(r=>Object.assign({},r,{col:tr(r.col)})));
 }
 function setTema(p){ const before=Object.assign({},C); const t=Object.assign({},tema(),p); putDoc("app","tema",t); _temaSig=""; applyTheme(); remapStored(before,C); render() }
+/* Editor de colores por partes de la app */
+let colOpen={};
+function colRow(label,cur,on,custom,reset){
+  return `<div class="row between" style="padding:7px 0;border-bottom:1px solid var(--line)"><span style="font-size:14px">${label}</span>
+    <span class="row" style="gap:6px">${custom?`<button class="link mute" style="font-size:12px" onclick="${reset}">↺</button>`:""}<input type="color" value="${cur}" style="width:46px;height:34px;padding:0;border:0;background:none;min-height:0" onchange="${on}"></span></div>`;
+}
+const rRow=(label,role,key)=>colRow(label,RC(role,key),`setRole('${role}',this.value)`,!!roles()[role],`setRole('${role}','')`);
+function colGroup(id,title,body){ const o=!!colOpen[id];
+  return `<div style="border-top:1px solid var(--line)"><button style="width:100%;text-align:left;padding:12px 0;font-weight:700;display:flex;justify-content:space-between" onclick="colOpen['${id}']=!colOpen['${id}'];render()"><span>${title}</span><span class="sub">${o?"▲":"▼"}</span></button>${o?`<div style="padding-bottom:8px">${body}</div>`:""}</div>`; }
+function vColoresPartes(){
+  const P=PALETAS[tema().paleta]||PALETAS.nordico, H=(l,t,k)=>rRow(l,"h:"+t,k);
+  const g=[
+    ["ui","🖼️ General",
+      colRow("Fondo (modo claro)",roles()["ui:bg"]||P.bg,`setRole('ui:bg',this.value)`,!!roles()["ui:bg"],`setRole('ui:bg','')`)+
+      colRow("Fondo (modo oscuro)",roles()["ui:bgd"]||"#1B2133",`setRole('ui:bgd',this.value)`,!!roles()["ui:bgd"],`setRole('ui:bgd','')`)+
+      colRow("Tarjetas",roles()["ui:card"]||"#FFFFFF",`setRole('ui:card',this.value)`,!!roles()["ui:card"],`setRole('ui:card','')`)+
+      colRow("Texto",roles()["ui:text"]||C.night,`setRole('ui:text',this.value)`,!!roles()["ui:text"],`setRole('ui:text','')`)+
+      colRow("Botones",roles()["ui:btn"]||C.night,`setRole('ui:btn',this.value)`,!!roles()["ui:btn"],`setRole('ui:btn','')`)+
+      colRow("Barra de abajo",roles()["ui:tabs"]||"#FFFFFF",`setRole('ui:tabs',this.value)`,!!roles()["ui:tabs"],`setRole('ui:tabs','')`)],
+    ["hoy","🏠 Hoy", H("Calendario de hoy","Hoy en tu calendario","sky")+H("Tareas para hoy","Tareas para hoy","peach")+H("Estudio","Estudio","lav")+H("Inglés","Inglés","hay")+rRow("Gym","t:gym","lav")+H("Hábitos","Hábitos","pool")+H("Comida de hoy","Comida de hoy","daff")],
+    ["agenda","📅 Agenda (categorías)", EVCATS.map(c=>colRow(`${c.e} ${c.n}`,evCatCol(c),`setRole('ev:${c.k}',this.value)`,!!roles()["ev:"+c.k],`setRole('ev:${c.k}','')`)).join("")+H("Planificar: qué quiero hacer","Qué quiero hacer","lav")+H("Planificar: propuesta","Propuesta","daff")+H("Lo que no hiciste","Lo que no hiciste","peach")+H("Año: lo importante","Lo importante que viene","daff")],
+    ["estudio","🎓 Estudio", rRow("TFG (tarjeta grande)","t:tfg","lav")+H("Reunión con tutores","Próxima reunión con tutores","sky")+H("Encargos del TFG","Encargos y tareas del TFG","peach")+H("Fases del TFG","Fases","pool")+H("Diario del TFG","Diario del TFG","daff")+H("Modo foco","Modo foco","daff")+H("Horas de la semana","Esta semana","sky")+
+      asigs().map(a=>colRow(`📚 ${esc(a.code)}`,a.col,`setAsig('${a.id}',{col:this.value})`,false,"")).join("")],
+    ["ingles","🇬🇧 Inglés", rRow("Tarjeta de inglés","t:ingles","hay")+H("Apuntar tiempo","Apuntar tiempo","daff")+H("Repasar","Repasar","sky")+H("Mi cuaderno","Mi cuaderno","lav")+H("Objetivo y recursos","Objetivo y recursos","pool")+rRow("🔵 Vocabulario","ing:vocab","sky")+rRow("🔴 Errores","ing:error","poppy")+rRow("🟢 Frases","ing:frase","pool")],
+    ["tareas","✅ Tareas (categorías)", ["TFG","Inglés","Personal","Casa","Otro"].map(k=>colRow(k,cats()[k],`setRole('cat:${k}',this.value)`,!!roles()["cat:"+k],`setRole('cat:${k}','')`)).join("")+'<div class="note">Las asignaturas se cambian en 🎓 Estudio.</div>'],
+    ["habitos","🌱 Hábitos", habs().map((x,i)=>colRow(esc(x.n),x.col||HCOL[i%HCOL.length],`saveHabs(habs().map(h=>h.id==='${x.id}'?Object.assign({},h,{col:this.value}):h))`,!!x.col,`saveHabs(habs().map(h=>h.id==='${x.id}'?Object.assign({},h,{col:undefined}):h))`)).join("")],
+    ["gym","💪 Gym", rutina().map(r=>colRow(`${esc(r.dia)} · ${esc(r.t)}`,r.col,`saveRut(rutina().map(x=>x.id==='${r.id}'?Object.assign({},x,{col:this.value}):x))`,false,"")).join("")+H("Peso corporal","Peso corporal","cotton")],
+    ["comida","🥑 Comida", H("Importar receta","✨ Importar de TikTok / Instagram","fuchsia")+H("Nueva receta","Nueva receta","sage")+H("Ingredientes","Ingredientes","daff")+H("Pasos","Pasos","sky")],
+    ["datos","⚙︎ Datos", H("Dónde se guarda","Dónde se guarda","lav")+H("Hacer copia","Hacer copia","daff")+H("Traer datos","Traer datos","pool")+H("Cuenta y calendario","Cuenta y calendario","sky")+H("IA para recetas","IA para recetas (Gemini)","fuchsia")]];
+  return `<div class="card"><div class="head" style="background:${C.cotton};color:${txtOn(C.cotton)}"><span class="cap">Colores de cada parte</span></div>
+    <div class="sub">Abre una sección y toca el cuadrado de color de lo que quieras cambiar. ↺ vuelve al color de la paleta.</div>
+    ${g.map(([id,t,b])=>colGroup(id,t,b)).join("")}
+    ${Object.keys(roles()).length?`<button class="link mute" style="margin-top:8px" onclick="if(Date.now()-delArm<3000){setTema({roles:{}})}else{delArm=Date.now();toast('Pulsa otra vez para quitar todos tus colores por partes')}">Quitar todos los colores por partes</button>`:""}</div>`;
+}
 function vTema(){
   const t=tema();
   return `<button class="link mute" onclick="go('mas')">‹ Más</button><h1>Apariencia</h1>
@@ -190,6 +233,7 @@ function vTema(){
       <div class="grid2" style="margin-top:8px">${KEYS.map(k=>`<label class="row" style="gap:8px;padding:6px;border-radius:12px;background:var(--soft)"><input type="color" value="${C[k]}" style="width:42px;height:34px;padding:0;border:0;background:none" onchange="setTema({custom:Object.assign({},tema().custom,{${k}:this.value})})"><span style="font-size:14px">${KNAME[k]}</span></label>`).join("")}
         <label class="row" style="gap:8px;padding:6px;border-radius:12px;background:var(--soft)"><input type="color" value="${(t.custom&&t.custom.bg)||(PALETAS[t.paleta]||PALETAS.nordico).bg}" style="width:42px;height:34px;padding:0;border:0;background:none" onchange="setTema({custom:Object.assign({},tema().custom,{bg:this.value})})"><span style="font-size:14px">Fondo (claro)</span></label></div>
       ${Object.keys(t.custom||{}).length?`<button class="link mute" onclick="setTema({custom:{}})">Quitar mis cambios de color</button>`:""}</div>
+    ${vColoresPartes()}
     <div class="note">Se guarda en tu cuenta: lo verás igual en el móvil y en el ordenador.</div>`;
 }
 
@@ -286,6 +330,7 @@ const EVCATS=[
   {k:"tfg",e:"🎓",n:"TFG",c:"3"},{k:"plan",e:"🥂",n:"Plan",c:"4"},{k:"cumple",e:"🎂",n:"Cumple",c:"5"},
   {k:"viaje",e:"✈️",n:"Viaje",c:"2"},{k:"deporte",e:"💪",n:"Deporte",c:"10"},{k:"nota",e:"📌",n:"Nota",c:"8"}];
 const vs=x=>x.replace(/️/g,"");
+const evCatCol=c=>roles()["ev:"+c.k]||EVCOL[c.c];
 function catOf(t){ const v=vs(t||"").trim(); return EVCATS.find(c=>v.startsWith(vs(c.e)))||null }
 function stripCat(t){ const c=catOf(t); if(!c) return t; return vs(t).trim().slice(vs(c.e).length).trim() }
 function normEv(e){
@@ -294,7 +339,7 @@ function normEv(e){
   const en=allDay?parseYmd(e.end?.date||e.start.date):new Date(e.end?.dateTime||e.start.dateTime);
   const aviso=!!(e.overrideReminders||[]).some(r=>r.minutes>=1440);
   const t=e.summary||"(sin título)", c=catOf(t);
-  return {id:e.id,rec:e.recurringEventId||null,t,s,e:en,allDay,loc:e.location||"",col:EVCOL[e.colorId]||(c?EVCOL[c.c]:null)||C.sky,link:e.htmlLink,aviso,cat:c?c.k:null,yearly:e.eventType==="BIRTHDAY"};
+  return {id:e.id,rec:e.recurringEventId||null,t,s,e:en,allDay,loc:e.location||"",col:(c&&roles()["ev:"+c.k])||EVCOL[e.colorId]||(c?EVCOL[c.c]:null)||C.sky,link:e.htmlLink,aviso,cat:c?c.k:null,yearly:e.eventType==="BIRTHDAY"};
 }
 /* Rangos largos (mes y año) se piden aparte y se guardan un rato */
 let rng={};
@@ -395,7 +440,7 @@ function vAnyo(){
     h+=`</div></button>`; }
   h+=`</div>`;
   const up=list.filter(e=>e.e>new Date()).sort((a,b)=>a.s-b.s).slice(0,12);
-  h+=`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Lo importante que viene</span></div>${up.map(evRow).join("")||'<div class="sub">Nada todavía.</div>'}</div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Lo importante que viene','daff')}"><span class="cap">Lo importante que viene</span></div>${up.map(evRow).join("")||'<div class="sub">Nada todavía.</div>'}</div>
     <div class="note">En el año se ven las cosas que anotas, no las clases que se repiten cada semana.</div>`;
   return h;
 }
@@ -498,15 +543,15 @@ function vPend(){
   if(!mcp) return "";
   if(pendBlocks===null){ loadPend(); return `<div class="card"><div class="sub">Mirando qué se quedó sin hacer…</div></div>` }
   pendBlocks=pendBlocks.filter(e=>!blockDone(e));
-  if(!pendBlocks.length) return `<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Lo que no hiciste</span></div><div class="sub">Nada pendiente de los últimos 7 días. 👏</div></div>`;
-  return `<div class="card"><div class="head" style="background:${C.peach}"><span class="cap">Lo que no hiciste</span><span class="cap">${pendBlocks.length}</span></div>
+  if(!pendBlocks.length) return `<div class="card"><div class="head" style="${hs('h:Lo que no hiciste','pool')}"><span class="cap">Lo que no hiciste</span></div><div class="sub">Nada pendiente de los últimos 7 días. 👏</div></div>`;
+  return `<div class="card"><div class="head" style="${hs('h:Lo que no hiciste','peach')}"><span class="cap">Lo que no hiciste</span><span class="cap">${pendBlocks.length}</span></div>
     ${pendBlocks.map(evRow).join("")}
     <button class="btn" style="margin-top:10px" onclick="replanAll()">↻ Pasarlo todo a mis próximos huecos libres</button>
     <div class="note">Si sí lo hiciste, márcalo con el círculo y desaparece de aquí.</div></div>`;
 }
 function vPlan(){
   const P=plan(), [st,en]=planRange();
-  let h=vPend()+`<div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Qué quiero hacer</span></div>
+  let h=vPend()+`<div class="card"><div class="head" style="${hs('h:Qué quiero hacer','lav')}"><span class="cap">Qué quiero hacer</span></div>
     <div class="seg">${[["esta","Lo que queda de esta semana"],["proxima","La semana que viene"]].map(([k,n])=>`<button class="${P.semana===k?"on":""}" onclick="savePlan({semana:'${k}'});prop=null">${n}</button>`).join("")}</div>
     <div class="row between" style="padding:6px 0"><span>🎓 Horas de TFG</span><div class="row"><button class="btn small ghost" onclick="savePlan({tfgH:Math.max(0,plan().tfgH-2)})">−</button><b style="min-width:28px;text-align:center">${P.tfgH}</b><button class="btn small ghost" onclick="savePlan({tfgH:plan().tfgH+2})">+</button></div></div>
     ${asigs().map(a=>{ const n=asigTemasN(a.code), pend=temasPend(a.code), nx=pend.slice(0,n);
@@ -519,9 +564,9 @@ function vPlan(){
     <button class="btn" style="margin-top:10px" onclick="genPlan()">${propBusy&&!prop?"Mirando tu calendario…":"✨ Proponer mi semana"}</button></div>`;
   if(prop){
     const byDay={}; for(const it of prop.items) (byDay[it.d]=byDay[it.d]||[]).push(it);
-    h+=`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Propuesta</span><span class="cap">${prop.items.length} bloques</span></div>
+    h+=`<div class="card"><div class="head" style="${hs('h:Propuesta','daff')}"><span class="cap">Propuesta</span><span class="cap">${prop.items.length} bloques</span></div>
       ${Object.keys(byDay).sort().map(d=>`<div class="daylbl" style="margin:10px 0 2px">${esc(fmtDay(parseYmd(d),{weekday:"long",day:"numeric"}))}</div>
-        ${byDay[d].map(it=>{const c=EVCATS.find(x=>x.k===it.cat);return `<div class="ev"><div class="bar" style="background:${c?EVCOL[c.c]:C.sky}"></div><div class="time">${mm(it.a)}</div><div class="grow">${esc(it.t)}<div class="sub">hasta las ${mm(it.b)}</div></div><button class="x" onclick="prop.items=prop.items.filter(x=>x.id!=='${it.id}');render()">✕</button></div>`}).join("")}`).join("")||'<div class="sub">No he encontrado huecos.</div>'}
+        ${byDay[d].map(it=>{const c=EVCATS.find(x=>x.k===it.cat);return `<div class="ev"><div class="bar" style="background:${c?evCatCol(c):C.sky}"></div><div class="time">${mm(it.a)}</div><div class="grow">${esc(it.t)}<div class="sub">hasta las ${mm(it.b)}</div></div><button class="x" onclick="prop.items=prop.items.filter(x=>x.id!=='${it.id}');render()">✕</button></div>`}).join("")}`).join("")||'<div class="sub">No he encontrado huecos.</div>'}
       ${prop.left?`<div class="note" style="color:${C.poppy}">No me han cabido ${prop.left} bloques: tienes la semana bastante llena.</div>`:""}
       ${prop.items.length?`<button class="btn" style="margin-top:12px" onclick="applyPlan()">${propBusy?"Añadiendo…":`Añadir ${prop.items.length} bloques a mi agenda`}</button>`:""}
       <div class="note">Quita con ✕ lo que no quieras antes de añadir. Se guardan sin avisos.</div></div>`;
@@ -543,7 +588,7 @@ function pickCat(k){ const e=newEv; e.cat=e.cat===k?null:k;
 function newEvForm(){
   const e=newEv;
   return `<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">${e.id?"Editar":"Anotar"}</span><button class="x" onclick="newEv=null;render()">✕</button></div>
-    <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${EVCATS.map(c=>`<button class="pill" style="padding:7px 10px;font-size:13px;background:${e.cat===c.k?EVCOL[c.c]:"var(--soft)"};color:${e.cat===c.k?"#252D45":"var(--mute)"}" onclick="pickCat('${c.k}')">${c.e} ${c.n}</button>`).join("")}</div>
+    <div class="row" style="flex-wrap:wrap;gap:6px;margin-bottom:10px">${EVCATS.map(c=>`<button class="pill" style="padding:7px 10px;font-size:13px;background:${e.cat===c.k?evCatCol(c):"var(--soft)"};color:${e.cat===c.k?"#252D45":"var(--mute)"}" onclick="pickCat('${c.k}')">${c.e} ${c.n}</button>`).join("")}</div>
     <input placeholder="${e.cat==="medico"?"Ej. Dentista, revisión…":e.cat==="cumple"?"Nombre":"¿Qué es?"}" value="${esc(e.t)}" oninput="newEv.t=this.value">
     <div class="row" style="margin-top:8px"><input type="date" value="${e.d}" onchange="newEv.d=this.value"></div>
     ${e.all?"":`<div class="row" style="margin-top:8px"><input type="time" value="${e.hi}" onchange="newEv.hi=this.value"><input type="time" value="${e.hf}" onchange="newEv.hf=this.value"></div>`}
@@ -600,7 +645,7 @@ async function delEv(serie){
 }
 
 /* ================= TAREAS ================= */
-function cats(){ const o={}; for(const a of asigs()) o[a.code]=a.col; Object.assign(o,{TFG:C.lav,"Inglés":C.hay,Personal:C.cotton,Casa:C.daff,Otro:C.sage}); return o }
+function cats(){ const o={}; for(const a of asigs()) o[a.code]=a.col; Object.assign(o,{TFG:C.lav,"Inglés":C.hay,Personal:C.cotton,Casa:C.daff,Otro:C.sage}); for(const k in o) if(roles()["cat:"+k]) o[k]=roles()["cat:"+k]; return o }
 const catCol=c=>cats()[c]||(c==="Clase"?C.sky:C.sage);
 let tNew={t:"",fecha:"",cat:"TFG"}, showDone=false, tEdit=null;
 function openTask(id){ const t=S.tareas[id]; if(!t) return; tEdit={id,t:t.t,fecha:t.fecha||"",cat:t.cat}; render() }
@@ -662,7 +707,7 @@ function toggleHab(id,d){ d=d||today(); const l=S.habitoslog[d]||{fecha:d,h:{}};
 function streak(id){ let n=0, d=new Date(); if(!hasHab(today(),id)) d=addDays(d,-1); while(hasHab(ymd(d),id)){n++; d=addDays(d,-1)} return n }
 function saveHabs(l){ putDoc("app","habitos",{lista:l}) }
 function habRows(withDots){
-  return habs().map((x,i)=>{ const on=hasHab(today(),x.id), col=HCOL[i%HCOL.length], st=streak(x.id);
+  return habs().map((x,i)=>{ const on=hasHab(today(),x.id), col=x.col||HCOL[i%HCOL.length], st=streak(x.id);
     let dots=""; if(withDots){ dots=`<div class="dots">${[6,5,4,3,2,1,0].map(k=>{const d=ymd(addDays(new Date(),-k));return `<span class="dot" style="${hasHab(d,x.id)?`background:${col}`:""}"></span>`}).join("")}</div>`; }
     return `<div class="it"><button class="chk ${on?"on":""}" style="${on?`background:${col}`:""}" onclick="toggleHab('${x.id}')">${on?"✓":""}</button>
       <div class="grow" onclick="toggleHab('${x.id}')"><div>${esc(x.n)}</div>${withDots?`<div class="row" style="margin-top:4px">${dots}${st?`<span class="sub">🔥 ${st}</span>`:""}</div>`:""}</div>
@@ -803,7 +848,7 @@ function vImport(){
     <div class="sub" style="margin-top:8px">Ingredientes (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.ing=this.value">${esc(p.ing)}</textarea>
     <div class="sub" style="margin-top:8px">Pasos (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.pasos=this.value">${esc(p.pasos)}</textarea>
     <div class="row" style="margin-top:10px"><button class="btn small" onclick="guardarImp()">${p.editId?"Guardar cambios":"Guardar receta"}</button><button class="link mute" onclick="imp.prev=null;render()">Atrás</button></div></div>`;
-  return `<div class="card"><div class="head" style="background:${C.fuchsia};color:#fff"><span class="cap">✨ Importar de TikTok / Instagram</span></div>
+  return `<div class="card"><div class="head" style="${hs('h:✨ Importar de TikTok / Instagram','fuchsia')}"><span class="cap">✨ Importar de TikTok / Instagram</span></div>
     <input placeholder="Enlace del vídeo (opcional, para guardarlo)" value="${esc(imp.url)}" oninput="imp.url=this.value">
     <textarea style="margin-top:6px;min-height:90px" placeholder="Pega aquí la descripción del post (donde suelen estar los ingredientes y pasos)" oninput="imp.txt=this.value">${esc(imp.txt)}</textarea>
     ${sampleFn?`<div class="row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
@@ -821,10 +866,10 @@ function vRecetaDetalle(){
   return `<button class="link mute" onclick="recVer=null;render()">‹ Recetas</button><h2 style="margin-top:4px">${esc(r.n)}</h2>
     ${r.raciones?`<div class="sub">${r.raciones} raciones</div>`:""}${r.keto?`<div class="note" style="color:var(--ink)">🥑 ${esc(r.keto)}</div>`:""}
     ${r.fuente?`<a class="link" href="${esc(/^https?:/.test(r.fuente)?r.fuente:"#")}" target="_blank" rel="noopener">▶ Ver el vídeo original</a>`:""}
-    <div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Ingredientes</span><span class="cap">${ing.length}</span></div>
+    <div class="card"><div class="head" style="${hs('h:Ingredientes','daff')}"><span class="cap">Ingredientes</span><span class="cap">${ing.length}</span></div>
       <div class="list">${ing.map(i=>`<div class="it">• ${esc(i)}</div>`).join("")||'<div class="sub">Sin ingredientes.</div>'}</div>
       <button class="btn" style="margin-top:10px" onclick="compraDe(recetas().find(x=>x.id==='${r.id}'))">🛒 Añadir a la lista de la compra</button></div>
-    ${pas.length?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Pasos</span></div>
+    ${pas.length?`<div class="card"><div class="head" style="${hs('h:Pasos','sky')}"><span class="cap">Pasos</span></div>
       ${pas.map((x,i)=>`<div class="row" style="align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)"><b style="min-width:24px;color:var(--mute)">${i+1}</b><div>${esc(x)}</div></div>`).join("")}</div>`:""}
     <button class="btn ghost" style="margin-bottom:10px" onclick="editReceta('${r.id}')">✏️ Editar receta</button>
     `;
@@ -849,7 +894,7 @@ function vRecetas(){
   if(recVer) return vRecetaDetalle();
   getSample().then(f=>{ if(f&&!vRecetas._r){ vRecetas._r=1; render() } });
   const rs=recetas();
-  return vImport()+`<div class="card"><div class="head" style="background:${C.sage}"><span class="cap">Nueva receta</span></div>
+  return vImport()+`<div class="card"><div class="head" style="${hs('h:Nueva receta','sage')}"><span class="cap">Nueva receta</span></div>
     <input placeholder="Nombre (ej. Pizza de base de pollo)" value="${esc(recNew2.n)}" oninput="recNew2.n=this.value">
     <input style="margin-top:6px" placeholder="Ingredientes separados por comas" value="${esc(recNew2.ing)}" oninput="recNew2.ing=this.value">
     <div class="seg">${MEALS.map(([k,n])=>`<button class="${recNew2.tipo===k?"on":""}" onclick="recNew2.tipo='${k}';render()">${n}</button>`).join("")}</div>
@@ -901,22 +946,22 @@ function importData(txt){
 function importFile(inp){ const f=inp.files&&inp.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>importData(String(r.result)); r.readAsText(f) }
 function vAjustes(){
   const cnt=COLS.reduce((a,c)=>a+Object.keys(S[c]).length,0);
-  const st=window.mdStandalone?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Cuenta y calendario</span></div>
+  const st=window.mdStandalone?`<div class="card"><div class="head" style="${hs('h:Cuenta y calendario','sky')}"><span class="cap">Cuenta y calendario</span></div>
     <div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn small ghost" onclick="mdShowSetup()">Configuración</button>
     ${mcp?`<button class="btn small ghost" onclick="connectGoogle()">Reconectar Google</button><button class="btn small ghost" onclick="disconnectGoogle()">Desconectar Google</button>`:""}
     <button class="btn small ghost" onclick="mdLogout()">Cerrar sesión</button></div></div>
-    <div class="card"><div class="head" style="background:${C.fuchsia};color:#fff"><span class="cap">IA para recetas (Gemini)</span></div>
+    <div class="card"><div class="head" style="${hs('h:IA para recetas (Gemini)','fuchsia')}"><span class="cap">IA para recetas (Gemini)</span></div>
       <div class="sub">Para que la web lea vídeos y capturas de recetas. Clave gratuita de aistudio.google.com.</div>
       <input style="margin-top:8px" type="password" placeholder="Pega aquí tu clave (AIza…)" value="${esc((S.app.ia&&S.app.ia.key)||"")}" onchange="putDoc('app','ia',{key:this.value.trim()});sampleReady=false;toast(this.value.trim()?'Clave guardada ✓':'Clave quitada')">
       <div class="note">${(S.app.ia&&S.app.ia.key)?"✓ Activada: en Recetas ya puedes subir vídeos.":"Sin clave, en Recetas solo se puede pegar texto."} Se guarda en tu cuenta, solo para ti.</div></div>`:"";
   return `<div class="row between"><h1>Datos</h1><button class="link" onclick="go('mas')">Volver</button></div>`+st+`
-  <div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Dónde se guarda</span></div>
+  <div class="card"><div class="head" style="${hs('h:Dónde se guarda','lav')}"><span class="cap">Dónde se guarda</span></div>
     <div>${dbState==="ok"?(window.mdStandalone?"En tu base de datos (Supabase): lo ves igual en el móvil y en el ordenador.":"En tu cuenta de Claude: lo ves igual desde cualquier dispositivo."):"En este navegador. Si borras los datos de Safari, se pierden: haz una copia de vez en cuando."}</div>
     <div class="note">${cnt} elementos guardados.</div></div>
-  <div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Hacer copia</span></div>
+  <div class="card"><div class="head" style="${hs('h:Hacer copia','daff')}"><span class="cap">Hacer copia</span></div>
     <div class="sub">${inClaude()?"Copia todos tus datos para pegarlos en la versión web.":"Descarga un archivo con todos tus datos."}</div>
     <button class="btn" style="margin-top:10px" onclick="exportData()">${inClaude()?"Copiar mis datos":"Descargar copia"}</button></div>
-  <div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Traer datos</span></div>
+  <div class="card"><div class="head" style="${hs('h:Traer datos','pool')}"><span class="cap">Traer datos</span></div>
     <div class="sub">Pega aquí la copia de la otra versión (o elige el archivo). Solo añade lo que falte, no borra nada.</div>
     <textarea style="margin-top:10px;min-height:90px" placeholder="Pega aquí la copia…" oninput="impTxt=this.value">${esc(impTxt)}</textarea>
     <div class="row" style="margin-top:8px"><button class="btn small" onclick="importData(impTxt)">Importar</button>
@@ -962,7 +1007,7 @@ function focusCard(){
       <div class="big" id="fcd" style="color:#252D45">${mmss(left)}</div><div class="pbar"><i id="fbar" style="width:0"></i></div>
       <div class="row" style="margin-top:12px"><button class="btn" onclick="focusStop()">Terminar</button></div>
       <div class="note" style="color:#252D45;opacity:.7">Deja el móvil boca abajo. Te aviso al acabar cada bloque.</div></div>`; }
-  return `<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Modo foco</span></div>
+  return `<div class="card"><div class="head" style="${hs('h:Modo foco','daff')}"><span class="cap">Modo foco</span></div>
     <div class="row" style="flex-wrap:wrap;gap:6px">${mats.map(m=>`<button class="pill" style="padding:8px 12px;font-size:13px;background:${m===fCfg.materia?catCol(m):"var(--soft)"};color:${m===fCfg.materia?"#252D45":"var(--mute)"}" onclick="fCfg.materia='${m}';LS.set('foco_cfg',fCfg);render()">${esc(m)}</button>`).join("")}</div>
     <div class="seg">${[[25,5],[50,10]].map(([a,b])=>`<button class="${fCfg.foco===a?"on":""}" onclick="fCfg.foco=${a};fCfg.desc=${b};LS.set('foco_cfg',fCfg);render()">${a} + ${b} min</button>`).join("")}</div>
     <button class="btn" onclick="focusStart()">▶ Empezar a estudiar ${esc(fCfg.materia)}</button></div>`;
@@ -970,7 +1015,7 @@ function focusCard(){
 function weekBars(){
   const mats=["TFG","Inglés",...asigs().map(a=>a.code),"Otro"].map(m=>[m,minsWeek(m)]).filter(x=>x[1]>0);
   const max=Math.max(60,...mats.map(x=>x[1]));
-  return `<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Esta semana</span><span class="cap">${hTxt(minsWeek())}</span></div>
+  return `<div class="card"><div class="head" style="${hs('h:Esta semana','sky')}"><span class="cap">Esta semana</span><span class="cap">${hTxt(minsWeek())}</span></div>
     ${mats.length?mats.map(([m,v])=>`<div style="margin:8px 0"><div class="row between"><span>${esc(m)}</span><span class="sub">${hTxt(v)}</span></div><div class="pbar" style="background:var(--soft)"><i style="width:${100*v/max}%;background:${catCol(m)}"></i></div></div>`).join(""):'<div class="sub">Aún no has usado el modo foco esta semana.</div>'}</div>`;
 }
 
@@ -981,14 +1026,14 @@ function vTfg(){
   const logs=Object.entries(S.tfglog).sort((a,b)=>(b[1].fecha||"").localeCompare(a[1].fecha||""));
   const ent=t.entrega?daysTo(t.entrega):null;
   const reu=t.reunion?new Date(t.reunion):null;
-  let h=`<div class="tile" style="background:${C.lav}"><div class="cap">TFG · LLM + tráfico de red</div>
+  let h=`<div class="tile" style="${hs('t:tfg','lav')}"><div class="cap">TFG · LLM + tráfico de red</div>
     <div style="font-size:30px;font-weight:800;margin:4px 0">${t.fases.length?Math.round(100*done/t.fases.length):0}%</div>
     <div class="pbar"><i style="width:${t.fases.length?100*done/t.fases.length:0}%"></i></div>
     <div style="margin-top:8px;font-weight:600">${cur?"Ahora: "+esc(cur.n):"¡Todas las fases hechas!"}</div>
     <div class="row between" style="margin-top:10px"><span>${ent!=null?`Entrega ${dTxt(ent)} <span style="opacity:.7">(${esc(fmtDay(parseYmd(t.entrega),{day:"numeric",month:"short"}))})</span>`:"Sin fecha de entrega"}</span>
       </div><div class="flabel" style="color:#252D45;opacity:.7">${t.entrega?"Cambiar fecha de entrega":"Poner fecha de entrega"}</div><input type="date" style="background:#fff8;border:0;color:#252D45;width:100%" value="${t.entrega}" onchange="saveTfg({entrega:this.value})"></div>`;
   // reunion
-  h+=`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Próxima reunión con tutores</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Próxima reunión con tutores','sky')}"><span class="cap">Próxima reunión con tutores</span></div>
     <div class="flabel">${t.reunion?"Cambiar día y hora":"Elige día y hora"}</div>
     <input type="datetime-local" style="width:100%" value="${esc(t.reunion||"")}" onchange="saveTfg({reunion:this.value})">
     ${reu?`<div class="note">${esc(fmtDay(reu,{weekday:"long",day:"numeric",month:"long"}))} a las ${fmtTime(reu)} · ${dTxt(daysTo(ymd(reu)))}</div>`:""}
@@ -996,17 +1041,17 @@ function vTfg(){
     <div class="list">${t.preg.map(q=>`<div class="it"><button class="chk ${q.done?"on":""}" style="${q.done?`background:${C.sky}`:""}" onclick="saveTfg({preg:tfg().preg.map(x=>x.id==='${q.id}'?Object.assign({},x,{done:!x.done}):x)})">${q.done?"✓":""}</button><div class="grow ${q.done?"done-t":""}">${esc(q.t)}</div><button class="x" onclick="saveTfg({preg:tfg().preg.filter(x=>x.id!=='${q.id}')})">✕</button></div>`).join("")}</div>
     <form class="row" style="margin-top:6px" onsubmit="event.preventDefault();if(pregNew.trim()){saveTfg({preg:[...tfg().preg,{id:uid(),t:pregNew.trim(),done:false}]});pregNew=''}"><input placeholder="Duda o cosa que enseñar…" value="${esc(pregNew)}" oninput="pregNew=this.value"><button class="btn small">+</button></form></div>`;
   // encargos
-  h+=`<div class="card"><div class="head" style="background:${C.peach}"><span class="cap">Encargos y tareas del TFG</span><span class="cap">${tk.length}</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Encargos y tareas del TFG','peach')}"><span class="cap">Encargos y tareas del TFG</span><span class="cap">${tk.length}</span></div>
     <div class="list">${tk.map(([k,x])=>taskRow(k,x)).join("")||'<div class="sub" style="padding:4px 0 10px">Nada pendiente.</div>'}</div>
     <form class="row" onsubmit="event.preventDefault();const v=this.t.value.trim();const d=this.d.value;if(v){putDoc('tareas',uid(),{t:v,fecha:d||null,cat:'TFG',hecho:false,creado:new Date().toISOString()});this.reset()}">
       <input name="t" placeholder="Nuevo encargo…"><input name="d" type="date" style="max-width:140px"><button class="btn small">+</button></form></div>`;
   // fases
-  h+=`<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Fases</span><span class="cap">${done}/${t.fases.length}</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Fases','pool')}"><span class="cap">Fases</span><span class="cap">${done}/${t.fases.length}</span></div>
     <div class="list">${t.fases.map((f,i)=>`<div class="it"><button class="chk ${f.done?"on":""}" style="${f.done?`background:${C.pool}`:""}" onclick="saveTfg({fases:tfg().fases.map(x=>x.id==='${f.id}'?Object.assign({},x,{done:!x.done}):x)})">${f.done?"✓":i+1}</button>
       <div class="grow ${f.done?"done-t":""}" style="${cur&&cur.id===f.id?"font-weight:700":""}">${esc(f.n)}</div><button class="x" onclick="saveTfg({fases:tfg().fases.filter(x=>x.id!=='${f.id}')})">✕</button></div>`).join("")}</div>
     <form class="row" style="margin-top:6px" onsubmit="event.preventDefault();if(faseNew.trim()){saveTfg({fases:[...tfg().fases,{id:uid(),n:faseNew.trim(),done:false}]});faseNew=''}"><input placeholder="Añadir fase…" value="${esc(faseNew)}" oninput="faseNew=this.value"><button class="btn small">+</button></form></div>`;
   // diario
-  h+=`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Diario del TFG</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Diario del TFG','daff')}"><span class="cap">Diario del TFG</span></div>
     <div class="sub">Apunta en una línea lo que hiciste o aprendiste. Te salvará al escribir la memoria.</div>
     <form style="margin-top:8px" onsubmit="event.preventDefault();if(logNew.trim()){putDoc('tfglog',uid(),{fecha:new Date().toISOString(),t:logNew.trim()});logNew=''}">
       <textarea placeholder="Hoy he…" oninput="logNew=this.value">${esc(logNew)}</textarea><button class="btn small" style="margin-top:6px">Guardar entrada</button></form>
@@ -1180,21 +1225,21 @@ function vIngles(){
   if(rv) return vReview();
   const g=ing(), td=today(), m=ingMin(td), st=ingStreak(), due=dueCards().length, ex=g.examen?daysTo(g.examen):null;
   const week=[6,5,4,3,2,1,0].map(k=>{const d=ymd(addDays(new Date(),-k));return [d,ingMin(d)]});
-  let h=`<div class="tile" style="background:${C.hay}"><div class="row between"><span class="cap">Inglés hoy</span><span class="cap">🔥 ${st} ${st===1?"día":"días"}</span></div>
+  let h=`<div class="tile" style="${hs('t:ingles','hay')}"><div class="row between"><span class="cap">Inglés hoy</span><span class="cap">🔥 ${st} ${st===1?"día":"días"}</span></div>
     <div style="font-size:34px;font-weight:800;margin:4px 0">${m}<span style="font-size:18px"> / ${g.meta} min</span></div>
     <div class="pbar"><i style="width:${Math.min(100,100*m/g.meta)}%"></i></div>
     <div class="row" style="gap:4px;margin-top:10px;align-items:flex-end;height:36px">${week.map(([d,v])=>`<div style="flex:1;text-align:center"><div style="height:${Math.max(3,Math.min(28,28*v/g.meta))}px;background:#252D45;opacity:${v?.8:.2};border-radius:4px"></div></div>`).join("")}</div>
     <div class="row" style="gap:4px">${week.map(([d])=>`<div style="flex:1;text-align:center;font-size:10px;opacity:.7">${"DLMXJVS"[parseYmd(d).getDay()]}</div>`).join("")}</div>
     ${ex!=null?`<div style="margin-top:8px;font-weight:600">Examen B2 ${dTxt(ex)}</div>`:""}</div>`;
-  h+=`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Apuntar tiempo</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Apuntar tiempo','daff')}"><span class="cap">Apuntar tiempo</span></div>
     <div class="row" style="flex-wrap:wrap;gap:6px">${["Listening","Reading","Vocabulario","Gramática","Speaking","Writing","Serie/peli"].map(a=>`<button class="pill" style="padding:7px 10px;font-size:13px;background:${ingAct===a?C.hay:"var(--soft)"};color:${ingAct===a?"#252D45":"var(--mute)"}" onclick="ingAct='${a}';render()">${a}</button>`).join("")}</div>
     <div class="row" style="margin-top:10px">${[10,15,20,30].map(x=>`<button class="btn small ghost" style="flex:1" onclick="addIngMin(${x})">+${x}</button>`).join("")}</div>
     <button class="btn" style="margin-top:10px" onclick="fCfg.materia='Inglés';LS.set('foco_cfg',fCfg);estTab='foco';render()">▶ Modo foco de inglés</button></div>`;
-  h+=`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Repasar</span><span class="cap">${due} para hoy</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Repasar','sky')}"><span class="cap">Repasar</span><span class="cap">${due} para hoy</span></div>
     <div class="sub">Las que sabes vuelven cada vez más tarde; las que fallas, mañana.</div>
     <button class="btn" style="margin-top:10px" onclick="startReview()" ${due?"":"disabled style='opacity:.5;margin-top:10px'"}>${due?`Empezar repaso (${due})`:"Nada que repasar hoy 🎉"}</button></div>`;
   const all=Object.entries(S.vocab).filter(([k,v])=>vFilter==="todas"||v.tipo===vFilter).sort((a,b)=>(b[1].creado||"").localeCompare(a[1].creado||""));
-  h+=`<div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Mi cuaderno</span><span class="cap">${Object.keys(S.vocab).length}</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Mi cuaderno','lav')}"><span class="cap">Mi cuaderno</span><span class="cap">${Object.keys(S.vocab).length}</span></div>
     <div class="row" style="gap:6px;margin-bottom:8px">${Object.entries(VTIPOS).map(([k,t])=>`<button class="pill" style="padding:7px 10px;font-size:13px;background:${vNew.tipo===k?t.col:"var(--soft)"};color:${vNew.tipo===k?"#252D45":"var(--mute)"}" onclick="vNew.tipo='${k}';render()">${t.dot} ${t.n}</button>`).join("")}</div>
     <form onsubmit="event.preventDefault();addVocab()">
       <input placeholder="${vNew.tipo==="error"?"Lo que dije mal → bien (ej. I have 22 years → I am 22)":vNew.tipo==="frase"?"Frase útil en inglés":"Palabra en inglés"}" value="${esc(vNew.w)}" oninput="vNew.w=this.value">
@@ -1205,7 +1250,7 @@ function vIngles(){
     <div class="list">${all.slice(0,40).map(([k,v])=>`<div class="it"><span class="dot" style="background:${(VTIPOS[v.tipo]||VTIPOS.vocab).col};flex:none"></span>
       <div class="grow"><div style="font-weight:600">${esc(v.w)}</div><div class="sub">${esc(v.m)}${v.ex?` · <i>${esc(v.ex)}</i>`:""}</div></div>
       <span class="sub" title="nivel">${"●".repeat(v.box||1)}</span><button class="x" onclick="removeDoc('vocab','${k}')">✕</button></div>`).join("")||'<div class="sub">Aún vacío. Pasa aquí lo de tu cuaderno de papel.</div>'}</div></div>`;
-  h+=`<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Objetivo y recursos</span></div>
+  h+=`<div class="card"><div class="head" style="${hs('h:Objetivo y recursos','pool')}"><span class="cap">Objetivo y recursos</span></div>
     <div class="row between"><span>Minutos al día</span><div class="row"><button class="btn small ghost" onclick="saveIng({meta:Math.max(5,ing().meta-5)})">−</button><b>${g.meta}</b><button class="btn small ghost" onclick="saveIng({meta:ing().meta+5})">+</button></div></div>
     <div class="row between" style="margin-top:8px;gap:10px"><span>Examen B2</span><input type="date" style="width:150px;flex:none;padding:7px 8px;font-size:14px" value="${g.examen}" onchange="saveIng({examen:this.value})"></div>
     <div class="list" style="margin-top:8px">${g.recursos.map((r,i)=>`<div class="it"><a class="grow" style="color:var(--ink);font-weight:600" href="${esc(/^https?:/.test(r.url)?r.url:"#")}" target="_blank" rel="noopener">${esc(r.t)}</a><button class="x" onclick="saveIng({recursos:ing().recursos.filter((x,j)=>j!==${i})})">✕</button></div>`).join("")}</div>
@@ -1216,7 +1261,7 @@ function vIngles(){
 }
 function hoyIngles(){
   const g=ing(), m=ingMin(today()), due=dueCards().length, st=ingStreak();
-  return `<div class="card"><div class="head" style="background:${C.hay}"><span class="cap">Inglés</span><button class="link" style="color:#252D45" onclick="estTab='ingles';go('estudio')">Abrir</button></div>
+  return `<div class="card"><div class="head" style="${hs('h:Inglés','hay')}"><span class="cap">Inglés</span><button class="link" style="color:#252D45" onclick="estTab='ingles';go('estudio')">Abrir</button></div>
     <div class="row between"><span>${m}/${g.meta} min hoy${st?` · 🔥 ${st}`:""}</span><span class="sub">${due?`${due} para repasar`:"repaso al día ✓"}</span></div>
     <div class="pbar" style="background:var(--soft)"><i style="width:${Math.min(100,100*m/g.meta)}%;background:${C.hay}"></i></div></div>`;
 }
@@ -1233,7 +1278,7 @@ function hoyEstudio(){
   for(const a of asigs()){ if(a.examen&&daysTo(a.examen)>=0) items.push([parseYmd(a.examen).getTime(),`📚 Examen ${a.code} · ${dTxt(daysTo(a.examen))}`]);
     for(const e of calFor(a.code)) if(/entrega|examen/i.test(e.t)&&e.e>new Date()&&!entDone()[e.id]) items.push([e.s.getTime(),`📝 ${e.t} · ${dTxt(daysTo(ymd(e.s)))}`]) }
   items.sort((a,b)=>a[0]-b[0]);
-  return `<div class="card"><div class="head" style="background:${C.lav}"><span class="cap">Estudio</span><button class="link" style="color:#252D45" onclick="go('estudio')">Abrir</button></div>
+  return `<div class="card"><div class="head" style="${hs('h:Estudio','lav')}"><span class="cap">Estudio</span><button class="link" style="color:#252D45" onclick="go('estudio')">Abrir</button></div>
     ${items.slice(0,4).map(x=>`<div style="padding:5px 0">${esc(x[1])}</div>`).join("")||'<div class="sub">Sin entregas ni exámenes a la vista.</div>'}
     <div class="row between" style="margin-top:8px"><span class="sub">${hTxt(minsWeek())} de foco esta semana</span>
     ${F?`<button class="btn small" onclick="go('estudio');estTab='foco';render()">⏱ ${F.mode==="foco"?"Estudiando":"Descanso"}</button>`:`<button class="btn small" onclick="estTab='foco';go('estudio')">▶ Foco</button>`}</div></div>`;
@@ -1298,24 +1343,24 @@ function saveHoy(p){ putDoc("app","hoy",Object.assign({},hoyCfg(),p)) }
 let hoyEdit=false;
 function hoyCard(k,d){
   const td=today();
-  if(k==="cal"){ let h=`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Hoy en tu calendario</span><button class="link" style="color:#252D45" onclick="go('agenda')">Agenda</button></div>`;
+  if(k==="cal"){ let h=`<div class="card"><div class="head" style="${hs('h:Hoy en tu calendario','sky')}"><span class="cap">Hoy en tu calendario</span><button class="link" style="color:#252D45" onclick="go('agenda')">Agenda</button></div>`;
     if(cal.events===null) h+=cal.err?calErrBox():`<div class="sub">Cargando…</div>`;
     else{ const ev=eventsOn(d).filter(e=>e.allDay||e.e>new Date()||(isBlock(e)&&!blockDone(e))); h+=ev.length?ev.map(evRow).join(""):`<div class="sub">Nada más por hoy.</div>`; }
     return h+`</div>` }
   if(k==="tareas"){ const tk=Object.entries(S.tareas).filter(([k,t])=>!t.hecho&&t.fecha&&t.fecha<=td);
-    return `<div class="card"><div class="head" style="background:${C.peach}"><span class="cap">Tareas para hoy</span><button class="link" style="color:#252D45" onclick="go('tareas')">Todas</button></div>
+    return `<div class="card"><div class="head" style="${hs('h:Tareas para hoy','peach')}"><span class="cap">Tareas para hoy</span><button class="link" style="color:#252D45" onclick="go('tareas')">Todas</button></div>
       <div class="list">${tk.map(([k,t])=>taskRow(k,t)).join("")||'<div class="sub" style="padding:4px 0 10px">Nada con fecha de hoy.</div>'}</div>${taskForm(true)}</div>` }
   if(k==="estudio") return hoyEstudio();
   if(k==="ingles") return hoyIngles();
   if(k==="gym"){ const R=rutina().find(r=>r.id===todayId())||rutina()[0], doneToday=sesList().some(s=>s.fecha&&ymd(new Date(s.fecha))===td&&s.ej?.some(e=>e.sets.length));
     const wkStart=addDays(new Date(),-((new Date().getDay()+6)%7)); wkStart.setHours(0,0,0,0);
     const wkN=new Set(sesList().filter(s=>new Date(s.fecha)>=wkStart&&s.ej?.some(e=>e.sets.length)).map(s=>ymd(new Date(s.fecha)))).size;
-    return `<div class="tile" style="background:${C.lav}"><div class="row between"><span class="cap">Gym · ${esc(R.dia)}</span><span class="pill" style="background:#fff8">${wkN}/5 esta semana</span></div>
+    return `<div class="tile" style="${hs('t:gym','lav')}"><div class="row between"><span class="cap">Gym · ${esc(R.dia)}</span><span class="pill" style="background:#fff8">${wkN}/5 esta semana</span></div>
       <div style="font-size:22px;font-weight:800;margin:6px 0 10px">${esc(R.t)}</div>
       ${W?`<button class="btn" onclick="go('gym')">Seguir entreno</button>`:doneToday?`<div style="font-weight:700">Hecho hoy ✓</div>`:`<button class="btn" onclick="go('gym');startDay('${R.id}')">Empezar</button>`}</div>` }
-  if(k==="habitos") return `<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Hábitos</span><button class="link" style="color:#fff" onclick="go('habitos')">Ver</button></div><div class="list">${habRows(false)}</div></div>`;
+  if(k==="habitos") return `<div class="card"><div class="head" style="${hs('h:Hábitos','pool')}"><span class="cap">Hábitos</span><button class="link" style="color:#fff" onclick="go('habitos')">Ver</button></div><div class="list">${habRows(false)}</div></div>`;
   if(k==="comida"){ const m=menu()[todayKey()]||{};
-    return `<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Comida de hoy</span><button class="link" style="color:#252D45" onclick="go('comida')">Menú</button></div>
+    return `<div class="card"><div class="head" style="${hs('h:Comida de hoy','daff')}"><span class="cap">Comida de hoy</span><button class="link" style="color:#252D45" onclick="go('comida')">Menú</button></div>
       ${MEALS.map(([k,n])=>`<div class="row between" style="padding:5px 0"><span class="sub">${n}</span><span style="text-align:right">${esc(m[k]||"—")}</span></div>`).join("")}</div>` }
   return "";
 }
@@ -1476,7 +1521,7 @@ let pesoNew="";
 function gProg(){
   const pesos=Object.values(S.peso).sort((a,b)=>a.ymd.localeCompare(b.ymd));
   let h=`<div class="row between"><h2>Progreso</h2><button class="link" onclick="gv='home';render()">Volver</button></div>
-    <div class="card"><div class="head" style="background:${C.cotton}"><span class="cap">Peso corporal</span>${pesos.length?`<span class="cap">${kgTxt(pesos[pesos.length-1].kg)} kg</span>`:""}</div>
+    <div class="card"><div class="head" style="${hs('h:Peso corporal','cotton')}"><span class="cap">Peso corporal</span>${pesos.length?`<span class="cap">${kgTxt(pesos[pesos.length-1].kg)} kg</span>`:""}</div>
     ${spark(pesos.slice(-30).map(p=>p.kg),C.fuchsia)}
     ${pesos.length>1?`<div class="note">${(()=>{const d=pesos[pesos.length-1].kg-pesos[0].kg;return `${d<=0?"":"+"}${kgTxt(d)} kg desde el ${esc(fmtDay(parseYmd(pesos[0].ymd),{day:"numeric",month:"short"}))}`})()}</div>`:""}
     <form class="row" style="margin-top:8px" onsubmit="event.preventDefault();const v=num(pesoNew);if(v>20){putDoc('peso',today(),{ymd:today(),kg:v});pesoNew=''}else toast('Escribe tu peso en kg')">
