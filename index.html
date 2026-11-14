@@ -109,9 +109,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794671077"></script>
-<script src="supabase.js?v=1794671077"></script>
-<script src="standalone.js?v=1794671077"></script>
+<script src="config.js?v=1794671596"></script>
+<script src="supabase.js?v=1794671596"></script>
+<script src="standalone.js?v=1794671596"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -723,7 +723,8 @@ const daysTo=d=>Math.round((parseYmd(d)-parseYmd(today()))/864e5);
 const dTxt=n=>n===0?"hoy":n===1?"mañana":n<0?`hace ${-n} d`:`en ${n} días`;
 function minsWeek(materia){ const ws=ymd(addDays(new Date(),-((new Date().getDay()+6)%7))); return Object.values(S.foco).filter(f=>f.ymd>=ws&&(!materia||f.materia===materia)).reduce((a,f)=>a+(f.min||0),0) }
 const hTxt=m=>m>=60?`${Math.floor(m/60)} h ${m%60?m%60+" min":""}`:`${m} min`;
-function calFor(code){ const re=new RegExp("\\b"+code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i"); return (cal.events||[]).filter(e=>re.test(e.t)) }
+function estRange(){ if(!mcp) return; const t=new Date(); t.setHours(0,0,0,0); loadRange("est"+ymd(t),addDays(t,-7),addDays(t,200)) }
+function calFor(code){ estRange(); const re=new RegExp("\\b"+code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i"); return allEvents().filter(e=>re.test(e.t)) }
 
 /* --- Foco (pomodoro) --- */
 let F=null, fCfg=Object.assign({foco:25,desc:5,materia:"TFG"},LS.get("foco_cfg",{})), fTimer=null;
