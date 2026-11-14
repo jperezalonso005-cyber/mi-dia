@@ -20,8 +20,9 @@
     }
   })();
   const gtok = ()=>{ const t=get("md_gtok",null); return t&&t.exp>Date.now()+60000?t.v:null };
-  window.connectGoogle = function(){
+  window.connectGoogle = function(silent){
     const c=cfg(); if(!c.gid){ alertBox("Falta el Client ID de Google. Ve a ⚙︎ Datos → Configuración."); return }
+    if(!silent) localStorage.setItem("md_gtry",String(Date.now()));
     const q = new URLSearchParams({client_id:c.gid,redirect_uri:location.origin+location.pathname,response_type:"token",
       scope:"https://www.googleapis.com/auth/calendar.events",include_granted_scopes:"true",prompt:c.gok?"none":"consent"});
     if(c.gmail) q.set("login_hint",c.gmail);
@@ -29,16 +30,27 @@
     location.href="https://accounts.google.com/o/oauth2/v2/auth?"+q.toString();
   };
   // si Google devuelve error con prompt=none (por ejemplo, permiso retirado), la próxima vez pide consentimiento
-  (function(){ const h=location.hash||""; if(h.includes("error=")){ const c=cfg(); set(LSK,Object.assign({},c,{gok:false})); history.replaceState(null,"",location.pathname) } })();
+  (function(){ const h=location.hash||""; if(h.includes("error=")){ const c=get(LSK,{}); set(LSK,Object.assign({},c,{gok:false})); history.replaceState(null,"",location.pathname) } })();
+  /* Reconexión automática: si el permiso de Google ha caducado y ya lo aceptaste antes,
+     la app va a Google y vuelve sola (sin pulsar nada). Como máximo un intento cada 3 minutos. */
+  function autoGoogle(reason){
+    const c=cfg(); if(!c.gid||!c.gok||gtok()) return false;
+    const last=+(localStorage.getItem("md_gtry")||0); if(Date.now()-last<180000) return false;
+    const a=document.activeElement; if(a&&["INPUT","TEXTAREA","SELECT"].includes(a.tagName)) return false;
+    localStorage.setItem("md_gtry",String(Date.now())); window.connectGoogle(true); return true;
+  }
+  window.mdAutoGoogle=autoGoogle;
+  let hiddenAt=0;
+  document.addEventListener("visibilitychange",()=>{ if(document.visibilityState==="hidden") hiddenAt=Date.now(); else if(hiddenAt&&Date.now()-hiddenAt>60000&&uid) autoGoogle("vuelta") });
   window.disconnectGoogle = function(){ localStorage.removeItem("md_gtok"); const c=cfg(); set(LSK,Object.assign({},c,{gok:false})); location.reload() };
 
   /* ---------- Calendario (misma forma que el conector de Claude) ---------- */
   const API = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
   async function gfetch(url,opt){
     const t=gtok(); if(!cfg().gid) throw {code:"no_google",message:"Sin calendario configurado"};
-    if(!t) throw {code:"needs_google",message:"Conecta Google Calendar"};
+    if(!t){ if(autoGoogle("caducado")) await new Promise(()=>{}); throw {code:"needs_google",message:"Conecta Google Calendar"} }
     const r=await fetch(url,Object.assign({},opt||{},{headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"}}));
-    if(r.status===401){ localStorage.removeItem("md_gtok"); throw {code:"needs_google",message:"Sesión de Google caducada"} }
+    if(r.status===401){ localStorage.removeItem("md_gtok"); if(autoGoogle("401")) await new Promise(()=>{}); throw {code:"needs_google",message:"Sesión de Google caducada"} }
     if(!r.ok){ const tx=await r.text(); throw {code:r.status>=500?"server_unavailable":"tool_error",message:tx} }
     return r.status===204?{}:r.json();
   }
@@ -236,7 +248,7 @@ alter publication supabase_realtime add table docs;`;
     if(!c.url||!c.key){ window.mdShowSetup(); return }
     sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await sb.auth.getSession();
-    const go=s=>{ if(!s||uid) return; uid=s.user.id; closeOverlay(); resolveReady(); flush() };
+    const go=s=>{ if(!s||uid) return; uid=s.user.id; closeOverlay(); resolveReady(); flush(); setTimeout(()=>autoGoogle("inicio"),800) };
     if(data.session) go(data.session); else showLogin();
     sb.auth.onAuthStateChange((ev,s)=>{ if(s) go(s) });
   }
