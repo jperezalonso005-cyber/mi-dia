@@ -50,6 +50,11 @@
   .spot{background:#1DB954!important;color:#fff!important}
   input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:11px 12px;width:100%}
   textarea{resize:vertical;min-height:44px}
+  /* En iPhone los campos de fecha/hora tienen un ancho mínimo propio y se salían de las tarjetas */
+  input[type=date],input[type=time],input[type=datetime-local]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;min-height:44px;line-height:1.2;text-align:left}
+  input[type=date]::-webkit-date-and-time-value,input[type=time]::-webkit-date-and-time-value,input[type=datetime-local]::-webkit-date-and-time-value{text-align:left;min-height:1.2em}
+  .row>input,.row>select,.row>label{min-width:0}
+  .flabel{font-size:13px;color:var(--mute);margin:10px 0 4px}
   .pill{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;color:#252D45}
   .list .it{display:flex;gap:10px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
   .list .it:last-child{border-bottom:0}
@@ -111,9 +116,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794699443"></script>
-<script src="supabase.js?v=1794699443"></script>
-<script src="standalone.js?v=1794699443"></script>
+<script src="config.js?v=1794699529"></script>
+<script src="supabase.js?v=1794699529"></script>
+<script src="standalone.js?v=1794699529"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -980,10 +985,11 @@ function vTfg(){
     <div class="pbar"><i style="width:${t.fases.length?100*done/t.fases.length:0}%"></i></div>
     <div style="margin-top:8px;font-weight:600">${cur?"Ahora: "+esc(cur.n):"¡Todas las fases hechas!"}</div>
     <div class="row between" style="margin-top:10px"><span>${ent!=null?`Entrega ${dTxt(ent)} <span style="opacity:.7">(${esc(fmtDay(parseYmd(t.entrega),{day:"numeric",month:"short"}))})</span>`:"Sin fecha de entrega"}</span>
-      </div><input type="date" style="margin-top:8px;background:#fff8;border:0;color:#252D45" value="${t.entrega}" onchange="saveTfg({entrega:this.value})"></div>`;
+      </div><div class="flabel" style="color:#252D45;opacity:.7">${t.entrega?"Cambiar fecha de entrega":"Poner fecha de entrega"}</div><input type="date" style="background:#fff8;border:0;color:#252D45;width:100%" value="${t.entrega}" onchange="saveTfg({entrega:this.value})"></div>`;
   // reunion
   h+=`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Próxima reunión con tutores</span></div>
-    <input type="datetime-local" value="${esc(t.reunion||"")}" onchange="saveTfg({reunion:this.value})">
+    <div class="flabel">${t.reunion?"Cambiar día y hora":"Elige día y hora"}</div>
+    <input type="datetime-local" style="width:100%" value="${esc(t.reunion||"")}" onchange="saveTfg({reunion:this.value})">
     ${reu?`<div class="note">${esc(fmtDay(reu,{weekday:"long",day:"numeric",month:"long"}))} a las ${fmtTime(reu)} · ${dTxt(daysTo(ymd(reu)))}</div>`:""}
     <div style="margin-top:10px;font-weight:700">Llevar a la reunión</div>
     <div class="list">${t.preg.map(q=>`<div class="it"><button class="chk ${q.done?"on":""}" style="${q.done?`background:${C.sky}`:""}" onclick="saveTfg({preg:tfg().preg.map(x=>x.id==='${q.id}'?Object.assign({},x,{done:!x.done}):x)})">${q.done?"✓":""}</button><div class="grow ${q.done?"done-t":""}">${esc(q.t)}</div><button class="x" onclick="saveTfg({preg:tfg().preg.filter(x=>x.id!=='${q.id}')})">✕</button></div>`).join("")}</div>
