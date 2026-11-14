@@ -200,7 +200,8 @@ alter publication supabase_realtime add table docs;`;
 
   async function start(){
     const c=cfg();
-    if(!c.url||!c.key||!window.supabase){ window.mdShowSetup(); return }
+    if(!window.supabase){ overlay(`<h1>Mi día</h1><div class="card"><b>No se ha podido cargar la app.</b><div class="sub">Comprueba que tienes internet y vuelve a abrirla.</div><button class="btn" style="margin-top:10px" onclick="location.reload()">Reintentar</button></div>`); return }
+    if(!c.url||!c.key){ window.mdShowSetup(); return }
     sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await sb.auth.getSession();
     const go=s=>{ if(!s||uid) return; uid=s.user.id; closeOverlay(); resolveReady(); flush() };
