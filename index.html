@@ -111,9 +111,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794697667"></script>
-<script src="supabase.js?v=1794697667"></script>
-<script src="standalone.js?v=1794697667"></script>
+<script src="config.js?v=1794697870"></script>
+<script src="supabase.js?v=1794697870"></script>
+<script src="standalone.js?v=1794697870"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -697,19 +697,90 @@ function genCompra(){
   const rs=recetas(), have=new Set(Object.values(S.compra).filter(x=>!x.hecho).map(x=>x.t.trim().toLowerCase())), add=[];
   for(const [d] of DIAS) for(const [m] of MEALS){ const v=((menu()[d]||{})[m]||"").trim().toLowerCase(); if(!v) continue;
     const r=rs.find(x=>x.n.toLowerCase()===v); if(!r) continue;
-    for(const i of r.ing.split(",").map(x=>x.trim()).filter(Boolean)) if(!have.has(i.toLowerCase())){ have.add(i.toLowerCase()); add.push(i) } }
+    for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ have.add(i.toLowerCase()); add.push(i) } }
   for(const i of add) write("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true});
   toast(add.length?`Añadidos ${add.length} ingredientes ✓`:"Ya tenías todo en la lista (o el menú no usa recetas guardadas)");
 }
+/* ---------- Importar receta de TikTok/Instagram: texto del post o capturas ---------- */
+let imp={url:"",txt:"",fotos:[],busy:false,prev:null}, recVer=null, sampleFn=null, sampleReady=false;
+async function getSample(){ if(sampleReady) return sampleFn; sampleReady=true; try{ sampleFn=await window.claude?.use?.("sample") ?? null }catch(e){ sampleFn=null } return sampleFn }
+const ingList=r=>String(r.ing||"").split(/\n|,(?![^(]*\))/).map(x=>x.trim()).filter(Boolean);
+const pasosList=r=>String(r.pasos||"").split(/\n/).map(x=>x.replace(/^\s*(\d+[\.\)-]|[-•*])\s*/,"").trim()).filter(Boolean);
+function parseRecetaTexto(t){
+  const lines=t.split(/\n/).map(l=>l.trim()).filter(Boolean); let mode="", n="", ing=[], pas=[];
+  for(const l0 of lines){ if(/^(#[\p{L}\w]+\s*)+$/u.test(l0)) continue; const l=l0.replace(/^[#\s]+/,""), low=l.toLowerCase().replace(/[^\p{L}\s]/gu,"").trim();
+    if(/^(ingredientes?|ingredients|necesitas|lista)/.test(low)){ mode="i"; continue }
+    if(/^(pasos?|preparaci[oó]n|elaboraci[oó]n|instrucciones|steps|method|modo de hacer|c[oó]mo se hace)/.test(low)){ mode="p"; continue }
+    if(!n&&!mode&&l.length<70&&!/^#/.test(l0)){ n=l.replace(/[🔥✨👇⬇️]+/gu,"").trim(); continue }
+    const clean=l.replace(/^(\d+[\.\)-]\s+|[-•*✅▪️🔸]\s*)/u,"").trim(); if(!clean||/^#\w/.test(clean)) continue;
+    if(mode==="i") ing.push(clean); else if(mode==="p") pas.push(clean);
+    else if(/^\d+\s*(g|gr|kg|ml|l|cucharad|cdas?|cdtas?|tazas?|uds?|unidades?|huevos?|lonchas?)\b|^(un|una|dos|tres|medio|media|\d)/i.test(clean)) ing.push(clean);
+    else if(/^\d+[\.\)]/.test(l)||clean.length>45) pas.push(clean); }
+  return {n:n||"Receta importada",ing:ing.join("\n"),pasos:pas.join("\n"),tipo:"com",keto:""};
+}
+async function importReceta(){
+  if(imp.busy) return; if(!imp.txt.trim()&&!imp.fotos.length) return toast("Pega el texto del post o añade capturas");
+  const sp=await getSample();
+  if(!sp){ if(!imp.txt.trim()) return toast("Sin Claude no puedo leer fotos: pega el texto"); imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); render(); return }
+  imp.busy=true; render();
+  const prompt=`Eres un asistente de cocina. A partir del texto y/o las capturas de una receta de TikTok o Instagram, devuelve SOLO un JSON con esta forma:
+{"n":"nombre corto de la receta en español","tipo":"des"|"com"|"cen","raciones":número o null,"ing":["cantidad + ingrediente", ...],"pasos":["paso 1", ...],"keto":"una frase: si es apta para dieta keto y qué cambiar si no lo es"}
+Reglas: ingredientes en español, uno por elemento, con cantidad si aparece; pasos claros y cortos; no inventes ingredientes que no aparezcan (si faltan cantidades, déjalas sin cantidad). tipo: des=desayuno, com=comida, cen=cena (elige el más lógico).
+TEXTO DEL POST:
+${imp.txt.slice(0,6000)||"(sin texto, mira las capturas)"}`;
+  try{
+    let lim=null; try{ lim=await sp.limits() }catch(e){}
+    const opts={modelTier:"default"}; if(imp.fotos.length&&lim&&lim.images) opts.images=imp.fotos;
+    const v=await sp.json(prompt,opts);
+    imp.prev={n:v.n||"Receta",tipo:["des","com","cen"].includes(v.tipo)?v.tipo:"com",ing:(v.ing||[]).join("\n"),pasos:(v.pasos||[]).join("\n"),keto:v.keto||"",raciones:v.raciones||null,fuente:imp.url};
+  }catch(e){ if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); toast("No he podido usar Claude; la he sacado del texto") } else toast(e&&e.code==="not_granted"?"Esta versión no puede leer fotos":"No he podido leerla, prueba otra vez") }
+  imp.busy=false; render();
+}
+function guardarImp(){ const p=imp.prev; if(!p||!p.n.trim()) return; write("recetas",uid(),{n:p.n.trim(),ing:p.ing.trim(),pasos:p.pasos.trim(),tipo:p.tipo,keto:p.keto||"",fuente:p.fuente||"",raciones:p.raciones||null,creado:new Date().toISOString()});
+  imp={url:"",txt:"",fotos:[],busy:false,prev:null}; toast("Receta guardada ✓") }
+function compraDe(r){ const have=new Set(Object.values(S.compra).filter(x=>!x.hecho).map(x=>x.t.trim().toLowerCase())); let n=0;
+  for(const i of ingList(r)) if(!have.has(i.toLowerCase())){ write("compra",uid(),{t:i,hecho:false,creado:new Date().toISOString(),auto:true}); have.add(i.toLowerCase()); n++ }
+  toast(n?`🛒 ${n} ingredientes añadidos a la compra`:"Ya estaban todos en la lista") }
+function vImport(){
+  const p=imp.prev;
+  if(p) return `<div class="card"><div class="head" style="background:${C.pool};color:#fff"><span class="cap">Revisa y guarda</span></div>
+    <input value="${esc(p.n)}" oninput="imp.prev.n=this.value">
+    <div class="seg">${MEALS.map(([k,n])=>`<button class="${p.tipo===k?"on":""}" onclick="imp.prev.tipo='${k}';render()">${n}</button>`).join("")}</div>
+    ${p.keto?`<div class="note" style="color:var(--ink)">🥑 ${esc(p.keto)}</div>`:""}
+    <div class="sub" style="margin-top:8px">Ingredientes (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.ing=this.value">${esc(p.ing)}</textarea>
+    <div class="sub" style="margin-top:8px">Pasos (uno por línea)</div><textarea style="min-height:120px" oninput="imp.prev.pasos=this.value">${esc(p.pasos)}</textarea>
+    <div class="row" style="margin-top:10px"><button class="btn small" onclick="guardarImp()">Guardar receta</button><button class="link mute" onclick="imp.prev=null;render()">Atrás</button></div></div>`;
+  return `<div class="card"><div class="head" style="background:${C.fuchsia};color:#fff"><span class="cap">✨ Importar de TikTok / Instagram</span></div>
+    <input placeholder="Enlace del vídeo (opcional, para guardarlo)" value="${esc(imp.url)}" oninput="imp.url=this.value">
+    <textarea style="margin-top:6px;min-height:90px" placeholder="Pega aquí la descripción del post (donde suelen estar los ingredientes y pasos)" oninput="imp.txt=this.value">${esc(imp.txt)}</textarea>
+    ${sampleFn?`<label class="btn small ghost" style="display:inline-block;margin-top:6px;cursor:pointer">📷 Añadir capturas${imp.fotos.length?` (${imp.fotos.length})`:""}<input type="file" accept="image/*" multiple style="display:none" onchange="imp.fotos=[...imp.fotos,...this.files].slice(0,6);render()"></label>`:""}
+    <button class="btn" style="margin-top:10px" onclick="importReceta()">${imp.busy?"Leyendo la receta…":"Sacar la receta"}</button>
+    <div class="note">${sampleFn?"No puedo ver el vídeo: usa la descripción o capturas donde salgan los ingredientes.":"En esta versión leo el texto pegado. Para capturas o textos liosos, mándaselos a Claude en el chat y pega aquí lo que te devuelva."}</div></div>`;
+}
+function vRecetaDetalle(){
+  const r=recetas().find(x=>x.id===recVer); if(!r){ recVer=null; return vRecetas() }
+  const ing=ingList(r), pas=pasosList(r);
+  return `<button class="link mute" onclick="recVer=null;render()">‹ Recetas</button><h2 style="margin-top:4px">${esc(r.n)}</h2>
+    ${r.raciones?`<div class="sub">${r.raciones} raciones</div>`:""}${r.keto?`<div class="note" style="color:var(--ink)">🥑 ${esc(r.keto)}</div>`:""}
+    ${r.fuente?`<a class="link" href="${esc(/^https?:/.test(r.fuente)?r.fuente:"#")}" target="_blank" rel="noopener">▶ Ver el vídeo original</a>`:""}
+    <div class="card"><div class="head" style="background:${C.daff}"><span class="cap">Ingredientes</span><span class="cap">${ing.length}</span></div>
+      <div class="list">${ing.map(i=>`<div class="it">• ${esc(i)}</div>`).join("")||'<div class="sub">Sin ingredientes.</div>'}</div>
+      <button class="btn" style="margin-top:10px" onclick="compraDe(recetas().find(x=>x.id==='${r.id}'))">🛒 Añadir a la lista de la compra</button></div>
+    ${pas.length?`<div class="card"><div class="head" style="background:${C.sky}"><span class="cap">Pasos</span></div>
+      ${pas.map((x,i)=>`<div class="row" style="align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)"><b style="min-width:24px;color:var(--mute)">${i+1}</b><div>${esc(x)}</div></div>`).join("")}</div>`:""}
+    <div class="card"><div class="sub">Ponerla en el menú</div><div class="seg" style="flex-wrap:wrap">${DIAS.map(([d,dn])=>`<button onclick="setMeal('${d}','${r.tipo||"com"}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,3)}</button>`).join("")}</div></div>`;
+}
 function vRecetas(){
+  if(recVer) return vRecetaDetalle();
+  getSample().then(f=>{ if(f&&!vRecetas._r){ vRecetas._r=1; render() } });
   const rs=recetas();
-  return `<div class="card"><div class="head" style="background:${C.sage}"><span class="cap">Nueva receta</span></div>
+  return vImport()+`<div class="card"><div class="head" style="background:${C.sage}"><span class="cap">Nueva receta</span></div>
     <input placeholder="Nombre (ej. Pizza de base de pollo)" value="${esc(recNew2.n)}" oninput="recNew2.n=this.value">
     <input style="margin-top:6px" placeholder="Ingredientes separados por comas" value="${esc(recNew2.ing)}" oninput="recNew2.ing=this.value">
     <div class="seg">${MEALS.map(([k,n])=>`<button class="${recNew2.tipo===k?"on":""}" onclick="recNew2.tipo='${k}';render()">${n}</button>`).join("")}</div>
     <button class="btn small" onclick="if(recNew2.n.trim()){write('recetas',uid(),{n:recNew2.n.trim(),ing:recNew2.ing.trim(),tipo:recNew2.tipo});recNew2={n:'',ing:'',tipo:recNew2.tipo}}else toast('Ponle nombre')">+ Guardar receta</button></div>
     ${MEALS.map(([k,n])=>{ const l=rs.filter(r=>r.tipo===k); return l.length?`<div class="card"><div class="head" style="background:${C.daff}"><span class="cap">${n}</span></div>
-      <div class="list">${l.map(r=>`<div class="it" style="align-items:flex-start"><div class="grow"><b>${esc(r.n)}</b><div class="sub">${esc(r.ing)}</div>
+      <div class="list">${l.map(r=>`<div class="it" style="align-items:flex-start"><div class="grow"><b style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(r.n)} ›</b><div class="sub" style="cursor:pointer" onclick="recVer='${r.id}';render()">${esc(ingList(r).slice(0,6).join(", "))}${r.pasos?" · con pasos":""}</div>
         <div class="row" style="flex-wrap:wrap;gap:4px;margin-top:6px">${DIAS.map(([d,dn])=>`<button class="pill" style="background:var(--soft);color:var(--mute);font-size:11px" onclick="setMeal('${d}','${k}',${esc(JSON.stringify(r.n))});toast('Puesta el ${dn.toLowerCase()} ✓')">${dn.slice(0,2)}</button>`).join("")}</div></div>
         <button class="x" onclick="${r.mia?`removeDoc('recetas','${r.id}')`:`write('app','comida',{ocultas:[...((S.app.comida&&S.app.comida.ocultas)||[]),'${r.id}']})`}">✕</button></div>`).join("")}</div></div>`:"" }).join("")}
     <div class="note">Toca un día debajo de una receta para ponerla en el menú.</div>`;
