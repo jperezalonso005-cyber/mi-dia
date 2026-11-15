@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794745530"></script>
-<script src="supabase.js?v=1794745530"></script>
-<script src="standalone.js?v=1794745530"></script>
+<script src="config.js?v=1794745751"></script>
+<script src="supabase.js?v=1794745751"></script>
+<script src="standalone.js?v=1794745751"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -727,7 +727,7 @@ document.addEventListener("touchmove",ev=>{ if(DD) ddMove(tPt(ev)) },{passive:fa
 document.addEventListener("touchend",()=>{ if(DD) ddEnd() });
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true,trab:{},
-  ini:540,fin:1260,fini:600,ffin:1260,maxDia:5,viaje:30,des:[480,30],com:[840,60],cen:[1260,45],comidas:true,socialH:4,socialDias:[5,6],socialIni:1200},S.app.plan||{});
+  ini:540,fin:1260,fini:600,ffin:1260,maxDia:5,viaje:30,des:[480,30],com:[840,60],cen:[1260,45],comidas:true,socialH:4,socialDias:[5,6],socialIni:1200,tfgDias:[1,3,5],tfgHdia:2,tfgFr:"x"},S.app.plan||{});
 const pTrab=()=>plan().trab||{};
 function setTrab(id,patch){ const t=Object.assign({},pTrab()); if(patch===null) delete t[id]; else t[id]=Object.assign({h:4,dia:2},t[id]||{},patch); savePlan({trab:t}); prop=null }
 function trabItems(){ const out=[], lim=ymd(addDays(new Date(),45));
@@ -775,22 +775,23 @@ async function genPlan(){
     const sl=freeSlots(c.d,eb,[[P.socialIni,1440]]).find(([x,y])=>y-x>=per); if(!sl) continue;
     out.push({id:uid(),d:c.k,a:sl[0],b:sl[0]+per,t:"🥂 Vida social",cat:"plan"}); const A=sl[0],B=sl[0]+per;
     c.free=c.free.flatMap(([x,y])=>B<=x||A>=y?[[x,y]]:[[x,A],[B,y]].filter(([p,q])=>q-p>=30)); soc-=per }
-  // entregas y tareas: horas totales repartidas antes de la fecha, máximo al día, no hace falta que sean seguidas
   let leftT=0; const TR=pTrab();
+  // TFG: los días elegidos, las horas elegidas (en trozos si hace falta)
+  for(const c of ctx.filter(c=>P.tfgDias.includes(c.d.getDay()))){ let rem=Math.min(Math.round(P.tfgHdia*60),cap(c));
+    const mid=13*60; const ok=([x,y])=>P.tfgFr==="m"?x<mid:P.tfgFr==="t"?y>mid+60:true;
+    while(rem>=30){ const fr=c.free.filter(f=>f[1]-f[0]>=30&&ok(f)).sort((p,q)=>(q[1]-q[0]>=rem)-(p[1]-p[0]>=rem)||p[0]-q[0])[0]; if(!fr) break;
+      const st0=P.tfgFr==="t"?Math.max(fr[0],Math.min(fr[1]-30,mid+60)):fr[0], ch=Math.min(rem,fr[1]-st0);
+      out.push({id:uid(),d:c.k,a:st0,b:st0+ch,t:"🎓 TFG",cat:"tfg"});
+      if(st0>fr[0]){ c.free.push([st0+ch+15,fr[1]]); fr[1]=st0 } else fr[0]+=ch+15; c.est+=ch; c.n++; rem-=ch }
+    if(rem>=30) leftT+=Math.ceil(rem/60) }
+  // entregas y tareas: horas totales repartidas antes de la fecha, máximo al día, no hace falta que sean seguidas
   for(const it of trabItems().filter(x=>TR[x.id])){ let rem=Math.round(TR[it.id].h*60); const perDay=Math.round(TR[it.id].dia*60);
     const okDays=ctx.filter(c=>!it.d||c.k<it.d);
     for(const c of okDays){ if(rem<=0) break; let today=Math.min(perDay,rem,cap(c));
       while(today>=30){ const fr=c.free.filter(([x,y])=>y-x>=30).sort((p,q)=>p[0]-q[0])[0]; if(!fr) break; const ch=Math.min(today,fr[1]-fr[0]);
         out.push({id:uid(),d:c.k,a:fr[0],b:fr[0]+ch,t:it.title,cat:it.ic==="📝"?"entrega":it.ic==="📖"?"clase":"nota"}); fr[0]+=ch+15; c.est+=ch; c.n++; rem-=ch; today-=ch } }
     if(rem>0) leftT+=Math.ceil(rem/60) }
-  // TFG y temas
-  const queue=[]; for(let i=0;i<Math.ceil(P.tfgH/2);i++) queue.push(["🎓 TFG",120,"tfg"]);
-  for(const a of asigs()){ const all=temasPend(a.code), pend=all.filter(t=>!TR["tema:"+t.id]), n=all.length&&!pend.length?0:asigTemasN(a.code);
-    for(let i=0;i<n;i++){ const t=pend[i]; queue.push([t?`📚 ${a.code} · ${t.n}`:`📚 Estudiar ${a.code}`,90,"clase"]) } }
-  const work=ctx.filter(c=>!c.wk).concat(ctx.filter(c=>c.wk)); let k=0, guard=0;
-  while(queue.length&&guard<300){ guard++; const c=work[k%work.length]; k++; const q=queue[0];
-    if(c.n>=4||cap(c)<q[1]){ if(work.every(x=>x.n>=4||cap(x)<q[1])) break; continue }
-    if(add(c,q[1],q[0],q[2],true)){ c.est+=q[1]; queue.shift() } else if(work.every(x=>!x.free.some(f=>f[1]-f[0]>=q[1]))) queue.shift() }
+  const queue=[];
   prop={items:out.sort((x,y)=>(x.d+String(x.a).padStart(4,"0")).localeCompare(y.d+String(y.a).padStart(4,"0"))),left:queue.length,leftT,st:ymd(st)}; propBusy=false; render();
 }
 const mm=m=>pad(Math.floor(m/60))+":"+pad(m%60);
@@ -880,17 +881,16 @@ function planVidaCard(){ const P=plan(), sp=(k,v)=>`savePlan({${k}:${v}});prop=n
       <div class="row between" style="margin-top:8px"><span class="sub">A partir de las</span>${tSel2(P.socialIni,sp("socialIni","+this.value"))}</div>`:""}</div></div>` }
 function vPlan(){
   const P=plan(), [st,en]=planRange();
-  let h=vPend()+`<div class="card"><div class="head" style="${hs('h:Qué quiero hacer','lav')}"><span class="cap">Qué quiero hacer</span></div>
-    <div class="seg">${[["esta","Lo que queda de esta semana"],["proxima","La semana que viene"]].map(([k,n])=>`<button class="${P.semana===k?"on":""}" onclick="savePlan({semana:'${k}'});prop=null">${n}</button>`).join("")}</div>
-    <div class="row between" style="padding:6px 0"><span>🎓 Horas de TFG</span><div class="row"><button class="btn small ghost" onclick="savePlan({tfgH:Math.max(0,plan().tfgH-2)})">−</button><b style="min-width:28px;text-align:center">${P.tfgH}</b><button class="btn small ghost" onclick="savePlan({tfgH:plan().tfgH+2})">+</button></div></div>
-    ${asigs().map(a=>{ const n=asigTemasN(a.code), pend=temasPend(a.code), nx=pend.slice(0,n);
-      return `<div style="padding:6px 0;border-top:1px solid var(--line)"><div class="row between"><span>📚 ${esc(a.code)}</span><div class="row"><button class="btn small ghost" onclick="savePlan({asigT:Object.assign({},plan().asigT,{'${a.code}':Math.max(0,asigTemasN('${a.code}')-1)})})">−</button><b style="min-width:58px;text-align:center">${n} ${n===1?"tema":"temas"}</b><button class="btn small ghost" onclick="savePlan({asigT:Object.assign({},plan().asigT,{'${a.code}':asigTemasN('${a.code}')+1})})">+</button></div></div>
-        <div class="sub" style="font-size:13px">${n===0?"Esta semana nada":pend.length?"Toca: "+esc(nx.map(t=>t.n).join(", "))+(n>pend.length?` (+${n-pend.length} sin tema)`:""):`<a href="#" style="color:var(--mute)" onclick="event.preventDefault();estTab='asig';go('estudio')">Añade sus temas en Estudio → Clases</a>`}</div></div>`}).join("")}
-    <div style="margin-top:8px">💪 Días de gym</div>
-    <div class="row" style="gap:6px;margin-top:6px">${[[1,"L"],[2,"M"],[3,"X"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]].map(([d,n])=>`<button class="pill" style="width:36px;height:36px;padding:0;background:${P.gymDias.includes(d)?C.lav:"var(--soft)"};color:${P.gymDias.includes(d)?"#252D45":"var(--mute)"}" onclick="savePlan({gymDias:plan().gymDias.includes(${d})?plan().gymDias.filter(x=>x!==${d}):[...plan().gymDias,${d}]})">${n}</button>`).join("")}</div>
+  const dch=(arr,key,col)=>`<div class="row" style="gap:6px;margin-top:6px">${[[1,"L"],[2,"M"],[3,"X"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]].map(([d,n])=>`<button class="pill" style="width:36px;height:36px;padding:0;background:${arr.includes(d)?col:"var(--soft)"};color:${arr.includes(d)?"#252D45":"var(--mute)"}" onclick="savePlan({${key}:plan().${key}.includes(${d})?plan().${key}.filter(x=>x!==${d}):[...plan().${key},${d}]});prop=null">${n}</button>`).join("")}</div>`;
+  const fr=(v,key)=>`<div class="seg" style="margin-top:8px">${[["m","Mañana"],["t","Tarde"],["x","Me da igual"]].map(([k,n])=>`<button class="${v===k?"on":""}" onclick="savePlan({${key}:'${k}'});prop=null">${n}</button>`).join("")}</div>`;
+  let h=vPend()+`<div class="card"><div class="head" style="${hs('h:TFG y gym','lav')}"><span class="cap">🎓 TFG y 💪 gym</span></div>
+    <div><b>🎓 TFG</b> <span class="sub">· qué días</span></div>${dch(P.tfgDias,"tfgDias",C.cotton)}
+    ${P.tfgDias.length?`<div class="row between" style="margin-top:10px"><span>Horas cada día</span>${hSel(P.tfgHdia,"savePlan({tfgHdia:+this.value});prop=null",0.5,10)}</div>${fr(P.tfgFr,"tfgFr")}`:""}
+    <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>💪 Gym</b> <span class="sub">· qué días</span></div>${dch(P.gymDias,"gymDias",C.lav)}
     <div class="row between" style="margin-top:10px"><span>Gym por la mañana</span><button class="sw ${P.manana?"on":""}" onclick="savePlan({manana:!plan().manana})"></button></div></div>
     ${planTrabCard()}${planVidaCard()}<div class="card">
-    <div class="note">Cada tema es un bloque de 1 h 30. Respeto tus clases, comidas, el tiempo de ir y volver, tu máximo de estudio al día y tu vida social. Las clases "opcionales" cuentan como libres. El martes ya tienes Body Pump.</div>
+    <div class="seg">${[["esta","Lo que queda de esta semana"],["proxima","La semana que viene"]].map(([k,n])=>`<button class="${P.semana===k?"on":""}" onclick="savePlan({semana:'${k}'});prop=null">${n}</button>`).join("")}</div>
+    <div class="note">Respeto tus clases, comidas, el tiempo de ir y volver, tu máximo de estudio al día y tu vida social. Las clases "opcionales" cuentan como libres. El martes ya tienes Body Pump.</div>
     <button class="btn" style="margin-top:10px" onclick="genPlan()">${propBusy&&!prop?"Mirando tu calendario…":"✨ Proponer mi semana"}</button></div>`;
   if(prop){
     const byDay={}; for(const it of prop.items) (byDay[it.d]=byDay[it.d]||[]).push(it);
