@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794745751"></script>
-<script src="supabase.js?v=1794745751"></script>
-<script src="standalone.js?v=1794745751"></script>
+<script src="config.js?v=1794746011"></script>
+<script src="supabase.js?v=1794746011"></script>
+<script src="standalone.js?v=1794746011"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -729,6 +729,8 @@ document.addEventListener("touchend",()=>{ if(DD) ddEnd() });
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true,trab:{},
   ini:540,fin:1260,fini:600,ffin:1260,maxDia:5,viaje:30,des:[480,30],com:[840,60],cen:[1260,45],comidas:true,socialH:4,socialDias:[5,6],socialIni:1200,tfgDias:[1,3,5],tfgHdia:2,tfgFr:"x"},S.app.plan||{});
 const pTrab=()=>plan().trab||{};
+const pSocial=()=>{ const P=plan(); if(P.social) return P.social; const o={}; for(const d of (P.socialDias||[])) o[d]={ini:P.socialIni||1200,h:Math.max(1,Math.round((P.socialH||4)/Math.max(1,(P.socialDias||[]).length)))}; return o };
+function setSocial(d,patch){ const o=Object.assign({},pSocial()); if(patch===null) delete o[d]; else o[d]=Object.assign({ini:1200,h:3},o[d]||{},patch); savePlan({social:o}); prop=null }
 function setTrab(id,patch){ const t=Object.assign({},pTrab()); if(patch===null) delete t[id]; else t[id]=Object.assign({h:4,dia:2},t[id]||{},patch); savePlan({trab:t}); prop=null }
 function trabItems(){ const out=[], lim=ymd(addDays(new Date(),45));
   for(const a of asigs()){ for(const x of entregasOf(a.code)) if(!x.done&&(!x.d||x.d<=lim)) out.push({id:x.id,t:x.t,d:x.d,code:a.code,title:`📚 ${a.code} · ${x.t}`,ic:"📝"});
@@ -768,13 +770,15 @@ async function genPlan(){
   // gym (con ida y vuelta)
   for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][dow]);
     if(R&&(R.id==="martes"||R.id==="domingo")) continue; R&&R.id==="sabado"?add(c,50,"🏃‍♀️ Correr · semana "+runWeek(),"deporte",true,P.viaje):add(c,105,`💪 Gym · ${R?R.t:"entreno"}`,"deporte",P.manana,P.viaje) }
-  // vida social: tarde-noche de los días elegidos
-  let soc=P.socialH*60; const sd=ctx.filter(c=>P.socialDias.includes(c.d.getDay()));
-  for(const c of sd){ if(soc<=0) break; const per=Math.min(soc,Math.max(60,Math.ceil(P.socialH*60/Math.max(1,sd.length)/30)*30));
+  // vida social: el día y la hora que tú dices
+  const SO=pSocial();
+  for(const c of ctx){ const so=SO[c.d.getDay()]; if(!so) continue; const per=Math.round(so.h*60);
     const eb=evs.filter(e=>!e.allDay&&e.s<addDays(c.d,1)&&e.e>c.d).map(e=>[ymd(e.s)===c.k?toMin(e.s):0,ymd(e.e)===c.k?toMin(e.e):1440]).concat(out.filter(x=>x.d===c.k).map(x=>[x.a,x.b]));
-    const sl=freeSlots(c.d,eb,[[P.socialIni,1440]]).find(([x,y])=>y-x>=per); if(!sl) continue;
-    out.push({id:uid(),d:c.k,a:sl[0],b:sl[0]+per,t:"🥂 Vida social",cat:"plan"}); const A=sl[0],B=sl[0]+per;
-    c.free=c.free.flatMap(([x,y])=>B<=x||A>=y?[[x,y]]:[[x,A],[B,y]].filter(([p,q])=>q-p>=30)); soc-=per }
+    const fs=freeSlots(c.d,eb,[[0,1440]]); let sl=fs.find(([x,y])=>x<=so.ini&&y>=so.ini+Math.min(per,60)); let A=sl?so.ini:null;
+    if(A==null){ const f2=fs.find(([x,y])=>y>so.ini&&y-Math.max(x,so.ini)>=Math.min(per,60)); if(f2){ sl=f2; A=Math.max(f2[0],so.ini) } }
+    if(A==null) continue; const B=sl[1]>=1440?A+per:Math.min(sl[1],A+per);
+    out.push({id:uid(),d:c.k,a:A,b:B,t:"🥂 Vida social",cat:"plan"});
+    c.free=c.free.flatMap(([x,y])=>B<=x||A>=y?[[x,y]]:[[x,A],[B,y]].filter(([p,q])=>q-p>=30)) }
   let leftT=0; const TR=pTrab();
   // TFG: los días elegidos, las horas elegidas (en trozos si hace falta)
   for(const c of ctx.filter(c=>P.tfgDias.includes(c.d.getDay()))){ let rem=Math.min(Math.round(P.tfgHdia*60),cap(c));
@@ -798,7 +802,8 @@ const mm=m=>pad(Math.floor(m/60))+":"+pad(m%60);
 async function applyPlan(){
   if(!prop||propBusy) return; propBusy=true; let ok=0; const items=[...prop.items];
   for(const it of items){ const c=EVCATS.find(x=>x.k===it.cat);
-    try{ await mcp.callTool(CAL,"create_event",{summary:it.t,startTime:`${it.d}T${mm(it.a)}:00`,endTime:`${it.d}T${mm(it.b)}:00`,colorId:c?c.c:undefined,useDefaultReminders:false}); ok++; prop.items=prop.items.filter(x=>x.id!==it.id); render() }
+    const ed=new Date(parseYmd(it.d).getTime()+it.b*60000);
+    try{ await mcp.callTool(CAL,"create_event",{summary:it.t,startTime:`${it.d}T${mm(it.a)}:00`,endTime:`${ymd(ed)}T${hm(ed)}:00`,colorId:c?c.c:undefined,useDefaultReminders:false}); ok++; prop.items=prop.items.filter(x=>x.id!==it.id); render() }
     catch(e){ toast(`Paré en "${it.t}": ${e&&e.code==="tool_error"?"Google no lo aceptó":"revisa la agenda antes de repetir"}`); break } }
   propBusy=false; await calChanged(); if(ok) toast(`${ok} bloques añadidos ✓`); if(!prop.items.length) prop=null; render();
 }
@@ -876,9 +881,9 @@ function planVidaCard(){ const P=plan(), sp=(k,v)=>`savePlan({${k}:${v}});prop=n
     <div class="row between" style="padding:8px 0 6px;border-top:1px solid var(--line);margin-top:6px"><span>Ir y volver a clase y al gym</span>${stp(P.viaje+" min","","").replace('onclick=""',`onclick="${sp("viaje","Math.max(0,plan().viaje-15)")}"`).replace('onclick=""',`onclick="${sp("viaje","Math.min(120,plan().viaje+15)")}"`)}</div>
     <div class="row between" style="padding:8px 0 2px;border-top:1px solid var(--line);margin-top:6px"><span>🍽 Respetar las comidas</span><button class="sw ${P.comidas?"on":""}" onclick="${sp("comidas","!plan().comidas")}"></button></div>
     ${P.comidas?meal("☕ Desayuno","des")+meal("🍽 Comida","com")+meal("🌙 Cena","cen"):""}
-    <div style="padding:8px 0 2px;border-top:1px solid var(--line);margin-top:6px"><div class="row between"><span>🥂 Vida social a la semana</span>${stp(P.socialH+" h","","").replace('onclick=""',`onclick="${sp("socialH","Math.max(0,plan().socialH-1)")}"`).replace('onclick=""',`onclick="${sp("socialH","Math.min(30,plan().socialH+1)")}"`)}</div>
-      ${P.socialH?`<div class="row" style="gap:6px;margin-top:8px">${[[1,"L"],[2,"M"],[3,"X"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]].map(([d,n])=>`<button class="pill" style="width:34px;height:34px;padding:0;background:${P.socialDias.includes(d)?C.peach:"var(--soft)"};color:${P.socialDias.includes(d)?"#252D45":"var(--mute)"}" onclick="${sp("socialDias",`plan().socialDias.includes(${d})?plan().socialDias.filter(x=>x!==${d}):[...plan().socialDias,${d}]`)}">${n}</button>`).join("")}</div>
-      <div class="row between" style="margin-top:8px"><span class="sub">A partir de las</span>${tSel2(P.socialIni,sp("socialIni","+this.value"))}</div>`:""}</div></div>` }
+    <div style="padding:8px 0 2px;border-top:1px solid var(--line);margin-top:6px"><b>🥂 Vida social</b> <span class="sub">· qué días y a qué hora quedas</span>
+      <div class="row" style="gap:6px;margin-top:8px">${[[1,"Lunes"],[2,"Martes"],[3,"Miércoles"],[4,"Jueves"],[5,"Viernes"],[6,"Sábado"],[0,"Domingo"]].map(([d,n])=>{ const on=!!pSocial()[d]; return `<button class="pill" style="width:36px;height:36px;padding:0;background:${on?C.peach:"var(--soft)"};color:${on?"#252D45":"var(--mute)"}" onclick="setSocial(${d},${on?"null":"{}"})">${n[0]==="M"&&n[1]==="i"?"X":n[0]}</button>` }).join("")}</div>
+      ${[[1,"Lunes"],[2,"Martes"],[3,"Miércoles"],[4,"Jueves"],[5,"Viernes"],[6,"Sábado"],[0,"Domingo"]].filter(([d])=>pSocial()[d]).map(([d,n])=>{ const so=pSocial()[d]; return `<div class="row between" style="padding:8px 0 0;gap:6px;flex-wrap:wrap"><span>${n}</span><div class="row" style="gap:4px;align-items:center"><span class="sub">a las</span>${tSel2(so.ini,`setSocial(${d},{ini:+this.value})`,15)}<span class="sub">durante</span>${hSel(so.h,`setSocial(${d},{h:+this.value})`,0.5,12)}</div></div>` }).join("")}</div></div>` }
 function vPlan(){
   const P=plan(), [st,en]=planRange();
   const dch=(arr,key,col)=>`<div class="row" style="gap:6px;margin-top:6px">${[[1,"L"],[2,"M"],[3,"X"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]].map(([d,n])=>`<button class="pill" style="width:36px;height:36px;padding:0;background:${arr.includes(d)?col:"var(--soft)"};color:${arr.includes(d)?"#252D45":"var(--mute)"}" onclick="savePlan({${key}:plan().${key}.includes(${d})?plan().${key}.filter(x=>x!==${d}):[...plan().${key},${d}]});prop=null">${n}</button>`).join("")}</div>`;
@@ -896,7 +901,7 @@ function vPlan(){
     const byDay={}; for(const it of prop.items) (byDay[it.d]=byDay[it.d]||[]).push(it);
     h+=`<div class="card"><div class="head" style="${hs('h:Propuesta','daff')}"><span class="cap">Propuesta</span><span class="cap">${prop.items.length} bloques</span></div>
       ${Object.keys(byDay).sort().map(d=>`<div class="daylbl" style="margin:10px 0 2px">${esc(fmtDay(parseYmd(d),{weekday:"long",day:"numeric"}))}</div>
-        ${byDay[d].map(it=>{const c=EVCATS.find(x=>x.k===it.cat);return `<div class="ev"><div class="bar" style="background:${c?evCatCol(c):C.sky}"></div><div class="time">${mm(it.a)}</div><div class="grow">${esc(it.t)}<div class="sub">hasta las ${mm(it.b)}</div></div><button class="x" onclick="prop.items=prop.items.filter(x=>x.id!=='${it.id}');render()">✕</button></div>`}).join("")}`).join("")||'<div class="sub">No he encontrado huecos.</div>'}
+        ${byDay[d].map(it=>{const c=EVCATS.find(x=>x.k===it.cat);return `<div class="ev"><div class="bar" style="background:${c?evCatCol(c):C.sky}"></div><div class="time">${mm(it.a)}</div><div class="grow">${esc(it.t)}<div class="sub">hasta las ${mm(it.b%1440)}</div></div><button class="x" onclick="prop.items=prop.items.filter(x=>x.id!=='${it.id}');render()">✕</button></div>`}).join("")}`).join("")||'<div class="sub">No he encontrado huecos.</div>'}
       ${prop.left?`<div class="note" style="color:${C.poppy}">No me han cabido ${prop.left} bloques de estudio: tienes la semana bastante llena.</div>`:""}${prop.leftT?`<div class="note" style="color:${C.poppy}">De entregas y tareas faltan unas ${prop.leftT} h por colocar antes de su fecha. Sube el máximo al día o quita algo.</div>`:""}
       ${prop.items.length?`<button class="btn" style="margin-top:12px" onclick="applyPlan()">${propBusy?"Añadiendo…":`Añadir ${prop.items.length} bloques a mi agenda`}</button>`:""}
       <div class="note">Quita con ✕ lo que no quieras antes de añadir. Se guardan sin avisos.</div></div>`;
