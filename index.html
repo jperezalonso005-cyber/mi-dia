@@ -26,7 +26,7 @@
   html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Lexend",-apple-system,system-ui,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 96px)}
   .wrap{max-width:540px;margin:0 auto}
-  @media (min-width:900px){ .wrap{max-width:none;margin:0 12px} .tlscroll{max-height:calc(100vh - 260px)!important} .tabs{justify-content:center} }
+  @media (min-width:900px){ html{zoom:1.18} .wrap{max-width:none;margin:0 12px} .tlscroll{max-height:calc(100vh - 260px)!important} .tabs{justify-content:center} }
   h1{font-size:28px;font-weight:800;margin:2px 0;letter-spacing:-.5px}
   h2{font-size:20px;font-weight:700;margin:0}
   .cap{font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px}
@@ -119,9 +119,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794746560"></script>
-<script src="supabase.js?v=1794746560"></script>
-<script src="standalone.js?v=1794746560"></script>
+<script src="config.js?v=1794746681"></script>
+<script src="supabase.js?v=1794746681"></script>
+<script src="standalone.js?v=1794746681"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
