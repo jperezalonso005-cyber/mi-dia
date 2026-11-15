@@ -117,9 +117,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794702460"></script>
-<script src="supabase.js?v=1794702460"></script>
-<script src="standalone.js?v=1794702460"></script>
+<script src="config.js?v=1794702568"></script>
+<script src="supabase.js?v=1794702568"></script>
+<script src="standalone.js?v=1794702568"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -561,7 +561,6 @@ function vDia(){
   if(allD.length) h+=`<div class="card" style="padding:8px 12px">${allD.map(evRow).join("")}</div>`;
   let tl=`<div id="tl" class="tlc" data-day="${day}" data-h0="${H0}" data-h1="${H1}" data-px="${PX}" style="position:relative;height:${(H1-H0)*60*PX}px;margin-left:44px">`;
   for(let hh=H0;hh<=H1;hh++) tl+=`<div style="position:absolute;top:${top(hh*60)}px;left:-44px;right:0;border-top:1px solid var(--line)"><span class="sub" style="position:absolute;top:-9px;left:0;font-size:11px;background:var(--card);padding-right:4px">${pad(hh)}:00</span></div>`;
-  tl+=`<div style="position:absolute;top:${top(cf.ini)}px;height:${(cf.fin-cf.ini)*PX}px;left:0;right:0;background:var(--soft);opacity:.45;border-radius:10px"></div>`;
   if(day===td){ const nm=toMin(new Date()); if(nm>=H0*60&&nm<=H1*60) tl+=`<div style="position:absolute;top:${top(nm)}px;left:-6px;right:0;border-top:2px solid ${C.poppy};z-index:3"></div>` }
   const PR=dprop&&dprop.day===day?dprop.items:[];
   const L=lanes(timed.map(e=>({key:e.id,a:ymd(e.s)===day?toMin(e.s):0,b:ymd(e.e)===day?toMin(e.e):1440})).concat(PR.map(it=>({key:it.id,a:it.a,b:it.b}))));
