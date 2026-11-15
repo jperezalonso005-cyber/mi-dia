@@ -59,6 +59,8 @@
     const b={};
     if(i.summary!=null) b.summary=i.summary;
     if(i.colorId) b.colorId=i.colorId;
+    if(i.location!=null) b.location=i.location;
+    if(i.description!=null) b.description=i.description;
     if(i.startTime){
       if(i.allDay){ b.start={date:i.startTime.slice(0,10)}; b.end={date:(i.endTime||i.startTime).slice(0,10)} }
       else { b.start={dateTime:i.startTime,timeZone:TZ}; b.end={dateTime:i.endTime||i.startTime,timeZone:TZ} }

@@ -117,9 +117,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794702290"></script>
-<script src="supabase.js?v=1794702290"></script>
-<script src="standalone.js?v=1794702290"></script>
+<script src="config.js?v=1794702460"></script>
+<script src="supabase.js?v=1794702460"></script>
+<script src="standalone.js?v=1794702460"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -299,6 +299,7 @@ function render(){
   const v={tema:vTema,mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes}[tab]||vHoy;
   let h=v(); if(toastMsg) h+=`<div class="toast">${esc(toastMsg)}</div>`;
   const sc0=document.getElementById("tlsc"), keep=sc0?{k:sc0.dataset.k,t:sc0.scrollTop,l:sc0.scrollLeft}:null;
+  if(qAdd) h+=qAddSheet();
   document.getElementById("app").innerHTML=h;
   const sc=document.getElementById("tlsc"); if(sc){ if(keep&&keep.k===sc.dataset.k){ sc.scrollTop=keep.t; sc.scrollLeft=keep.l } else sc.scrollTop=+sc.dataset.st||0 }
   const pk=document.getElementById("pocket"); if(pk) pk.innerHTML=pocketHtml();
@@ -482,10 +483,9 @@ function vCols(base){
     for(const e of timed){ const a=ymd(e.s)===k?toMin(e.s):0, b=ymd(e.e)===k?toMin(e.e):1440, mv=ymd(e.s)===k&&ymd(e.e)===k, dn=isBlock(e)&&blockDone(e);
       h+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openEditEv('${esc(e.id)}')" style="position:absolute;top:${Math.max(0,top(a))+1}px;height:${Math.max(16,(b-Math.max(a,H0*60))*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:7px;padding:2px 4px;font-size:10px;line-height:1.2;overflow:hidden;z-index:2;${dn?"opacity:.5":""}">
         <b style="display:block;${dn?"text-decoration:line-through":""}">${esc(e.t)}</b><span class="tlt" style="opacity:.75">${fmtTime(e.s)}</span>${mv?`<div class="tlh"></div>`:""}</div>` }
-    if(qAdd&&qAdd.day===k) h+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(16,qAdd.dur*PX-2)}px;left:2px;right:2px;border:2px dashed ${C.pool};background:var(--soft);border-radius:7px;font-size:10px;padding:2px 4px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b></div>`;
+    if(qAdd&&qAdd.day===k) h+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(16,Math.min(qAdd.dur,1440-qAdd.a)*PX-2)}px;left:2px;right:2px;border:2px dashed ${C.pool};background:var(--soft);border-radius:7px;font-size:10px;padding:2px 4px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b></div>`;
     h+=`</div></div>`; }
   h+=`</div></div></div><div class="note">Toca un día para verlo entero. Toca una hora vacía para apuntar algo, o mantén pulsado y arrastra para elegir de qué hora a qué hora. Mantén pulsado un bloque para moverlo, también a otro día.</div>`;
-  if(qAdd&&days.some(d=>ymd(d)===qAdd.day)) h+=qAddSheet();
   return h;
 }
 function vAgenda(){
@@ -572,12 +572,11 @@ function vDia(){
       <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span class="tlt" style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div>${mv?`<div class="tlh"></div>`:""}</div>` }
   if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div class="tlb" data-k="pr" data-id="${it.id}" data-a="${it.a}" data-b="${it.b}" onclick="if(!tlNoClick()){dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()}" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;${laneCss(L,it.id,1)};border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
       <b>✅ ${esc(it.t)}</b> <span class="sub"><span class="tlt">${mm(it.a)}–${mm(it.b)}</span> · toca para quitar</span><div class="tlh"></div></div>`;
-  if(qAdd&&qAdd.day===day) tl+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(20,qAdd.dur*PX-2)}px;left:0;right:0;border:2px dashed ${C.pool};background:var(--soft);border-radius:10px;padding:3px 8px;font-size:13px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b> <span class="sub">${mm(qAdd.a)}–${mm(qAdd.a+qAdd.dur)}</span></div>`;
+  if(qAdd&&qAdd.day===day) tl+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(20,Math.min(qAdd.dur,1440-qAdd.a)*PX-2)}px;left:0;right:0;border:2px dashed ${C.pool};background:var(--soft);border-radius:10px;padding:3px 8px;font-size:13px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b> <span class="sub">${mm(qAdd.a)}–${mm(qAdd.a+qAdd.dur)}</span></div>`;
   const fst=timed.length?Math.min(...timed.map(e=>ymd(e.s)===day?toMin(e.s):0)):cf.ini, stM=day===td?toMin(new Date())-60:Math.min(fst,cf.ini)-30;
   h+=`<div class="card" style="padding:0 0 0 12px"><div id="tlsc" class="tlscroll" data-k="dia:${day}" data-st="${Math.max(0,top(stM))}" style="max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 12px 0">${tl}</div></div></div>`;
   const nd=evs.filter(e=>isBlock(e)&&!blockDone(e)&&!/^💪/u.test(e.t)).length;
   if(mcp&&day<=td&&nd) h+=`<button class="btn ghost" style="margin-bottom:10px" ${dBusy?"disabled":""} onclick="pasarAManana()">⏭ Pasar lo que no he hecho a ${day<td?"hoy/mañana":"mañana"} (${nd})</button>`;
-  if(qAdd&&qAdd.day===day) h+=qAddSheet();
   if(dprop&&dprop.day===day){
     h+=`<div class="card" style="border:2px solid ${C.pool}"><b>Propuesta para ${day===td?"hoy":esc(fmtDay(d,{weekday:"long"}))}</b>
       <div class="sub">${dprop.items.length?`${dprop.items.length} tareas colocadas en tus huecos libres (las de línea discontinua).`:"No he podido colocar nada."}${dprop.noFit.length?` No caben: ${esc(dprop.noFit.join(", "))}.`:""}</div>
@@ -606,27 +605,50 @@ const tlNoClick=()=>Date.now()-tlLastDrag<500;
 let qAdd=null;
 function tlTap(ev){ if(tab!=="agenda"||tlNoClick()||!ev.target.closest) return; const tl=ev.target.closest(".tlc"); if(!tl||ev.target.closest(".tlb")) return;
   const r=tl.getBoundingClientRect(), px=+tl.dataset.px, m=+tl.dataset.h0*60+Math.floor((ev.clientY-r.top)/px/30)*30;
-  qAdd={day:tl.dataset.day||agDia,a:Math.max(0,Math.min(1425,m)),dur:60,t:(qAdd&&qAdd.t)||"",kind:(qAdd&&qAdd.kind)||"tarea",cat:(qAdd&&qAdd.cat)||"Personal"}; render();
-  setTimeout(()=>{ const i=document.getElementById("qai"); if(i){ i.focus({preventScroll:true}); } },50) }
+  newQ(tl.dataset.day||agDia,Math.max(0,Math.min(1425,m)),60) }
 document.addEventListener("click",tlTap);
-function qAddSheet(){ const q=qAdd;
-  return `<div style="position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -8px 30px #0003;border-radius:18px 18px 0 0;max-width:560px;margin:0 auto">
-    <div class="row between"><b>Nueva${q.day!==today()?" · "+esc(fmtDay(parseYmd(q.day),{weekday:"short",day:"numeric"})):""} a las ${mm(q.a)}</b><button class="x" onclick="qAdd=null;render()">✕</button></div>
-    <form onsubmit="event.preventDefault();qSave()"><input id="qai" style="margin-top:8px" placeholder="${q.kind==="tarea"?"¿Qué tienes que hacer?":"¿Qué es?"}" value="${esc(q.t)}" oninput="qAdd.t=this.value"></form>
-    <div class="seg" style="margin-top:8px"><button class="${q.kind==="tarea"?"on":""}" onclick="qAdd.kind='tarea';render()">✅ Tarea</button><button class="${q.kind==="evento"?"on":""}" onclick="qAdd.kind='evento';render()">📌 Evento</button></div>
-    ${q.kind==="tarea"?`<div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${Object.keys(cats()).map(c=>`<button class="pill" style="padding:5px 9px;background:${q.cat===c?catCol(c):"var(--soft)"};color:${q.cat===c?"#252D45":"var(--mute)"}" onclick="qAdd.cat='${esc(c)}';render()">${esc(c)}</button>`).join("")}</div>`:""}
-    <div class="row" style="gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap"><span class="sub" style="width:48px">Empieza</span><button class="btn small ghost" onclick="qAdd.a=Math.max(0,qAdd.a-15);render()">−</button><b style="min-width:48px;text-align:center">${mm(q.a)}</b><button class="btn small ghost" onclick="qAdd.a=Math.min(1425,qAdd.a+15);qAdd.dur=Math.min(qAdd.dur,1440-qAdd.a);render()">+</button></div>
-    <div class="row" style="gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap"><span class="sub" style="width:48px">Acaba</span><button class="btn small ghost" onclick="qAdd.dur=Math.max(15,qAdd.dur-15);render()">−</button><b style="min-width:48px;text-align:center">${mm(Math.min(1439,q.a+q.dur)).replace("23:59",q.a+q.dur>=1440?"24:00":"23:59")}</b><button class="btn small ghost" onclick="qAdd.dur=Math.min(1440-qAdd.a,qAdd.dur+15);render()">+</button><span class="sub">· ${q.dur%60?(q.dur>=60?Math.floor(q.dur/60)+" h "+q.dur%60+" min":q.dur+" min"):q.dur/60+" h"}</span></div>
-    <div class="row" style="gap:4px;margin-top:6px">${[15,30,60,90,120].map(m=>`<button class="pill" style="padding:6px 10px;background:${q.dur===m?C.daff:"var(--soft)"};color:${q.dur===m?"#252D45":"var(--mute)"}" onclick="qAdd.dur=${m};render()">${m<60?m+"′":m/60+" h"}</button>`).join("")}</div>
-    <button class="btn ok" style="margin-top:10px" ${qAdd.busy?"disabled":""} onclick="qSave()">${qAdd.busy?"Guardando…":"Guardar"}</button></div>
-    <div style="height:330px"></div>` }
-async function qSave(){ const q=qAdd; if(!q||q.busy) return; const t=q.t.trim(); if(!t) return toast("Escribe qué es");
-  const b=Math.min(1439,q.a+q.dur);
-  if(q.kind==="tarea") putDoc("tareas",uid(),{t,fecha:q.day,cat:q.cat,hecho:false,dur:q.dur,creado:new Date().toISOString()});
-  if(!mcp){ qAdd=null; render(); return toast(q.kind==="tarea"?"Tarea guardada (conecta Google para verla en la hora)":"Conecta Google Calendar para guardar eventos") }
+function newQ(day,a,dur,kind){ const o=qAdd||{}; qAdd={day,a,dur,t:o.t||"",kind:kind||o.kind||"evento",cat:o.cat||"Personal",ecat:o.ecat||null,loc:"",notes:"",all:false,rep:"no",aviso:"no"}; render();
+  setTimeout(()=>{ const i=document.getElementById("qai"); if(i) i.focus({preventScroll:true}) },60) }
+const qEnd=q=>{ const t=parseYmd(q.day).getTime()+(q.a+q.dur)*60000, d=new Date(t); return {d:ymd(d),m:toMin(d)} };
+function qSetEnd(d,m){ const q=qAdd, st=parseYmd(q.day).getTime()+q.a*60000, en=parseYmd(d).getTime()+m*60000; q.dur=Math.max(15,Math.round((en-st)/60000)); render() }
+function qSetStart(d,m){ const q=qAdd; q.day=d; q.a=m; render() }
+const tOpts=v=>Array.from({length:96},(_,i)=>i*15).map(m=>`<option value="${m}" ${m===v?"selected":""}>${mm(m)}</option>`).join("")+(v%15?`<option value="${v}" selected>${mm(v)}</option>`:"");
+function qAddSheet(){ const q=qAdd, en=qEnd(q), isT=q.kind==="tarea";
+  const row=(l,r,last)=>`<div class="row between" style="padding:11px 14px;${last?"":"border-bottom:1px solid var(--line)"};gap:10px;min-height:46px"><span>${l}</span><span class="row" style="gap:6px;justify-content:flex-end;flex-wrap:wrap">${r}</span></div>`;
+  const grp=x=>`<div style="background:var(--card);border-radius:14px;margin:0 0 14px;overflow:hidden">${x}</div>`;
+  const pill="background:var(--soft);border:0;border-radius:8px;padding:6px 8px;width:auto;min-width:0;font-weight:600;color:var(--ink);font-size:15px";
+  const dInp=(v,fn)=>`<input type="date" style="${pill};min-width:120px" value="${v}" onchange="${fn}">`;
+  const tSel=(v,fn)=>`<select style="${pill}" onchange="${fn}">${tOpts(v)}</select>`;
+  const len=q.dur%60?(q.dur>=60?Math.floor(q.dur/60)+" h "+q.dur%60+" min":q.dur+" min"):q.dur/60+" h";
+  return `<div onclick="if(event.target===this){qAdd=null;render()}" style="position:fixed;inset:0;z-index:60;background:#0006;display:flex;align-items:flex-end;justify-content:center">
+  <div style="width:100%;max-width:560px;max-height:92vh;overflow-y:auto;background:var(--soft);border-radius:16px 16px 0 0;padding:0 14px calc(18px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch">
+    <div class="row between" style="position:sticky;top:0;background:var(--soft);padding:14px 0 10px;z-index:2"><button class="link" style="text-decoration:none;font-size:16px" onclick="qAdd=null;render()">Cancelar</button>
+      <b style="font-size:17px">${isT?"Nueva tarea":"Nuevo evento"}</b><button class="link" style="text-decoration:none;font-size:16px;font-weight:800;${q.t.trim()?"":"opacity:.4"}" ${q.busy?"disabled":""} onclick="qSave()">${q.busy?"…":"Añadir"}</button></div>
+    <div class="seg" style="margin:0 0 12px">${[["evento","📌 Evento"],["tarea","✅ Tarea"]].map(([k,n])=>`<button class="${q.kind===k?"on":""}" onclick="qAdd.kind='${k}';render()">${n}</button>`).join("")}</div>
+    ${grp(`<form onsubmit="event.preventDefault();qSave()" style="margin:0"><input id="qai" style="border:0;border-radius:0;background:transparent;padding:13px 14px;font-size:16px;border-bottom:1px solid var(--line)" placeholder="${isT?"Qué tienes que hacer":"Título"}" value="${esc(q.t)}" oninput="qAdd.t=this.value;document.querySelector('[onclick=&quot;qSave()&quot;].link')&&(document.querySelector('[onclick=&quot;qSave()&quot;].link').style.opacity=this.value.trim()?1:.4)"></form>
+      <input style="border:0;border-radius:0;background:transparent;padding:13px 14px;font-size:16px" placeholder="Ubicación" value="${esc(q.loc)}" oninput="qAdd.loc=this.value">`)}
+    ${grp(row("Todo el día",`<button class="sw ${q.all?"on":""}" onclick="qAdd.all=!qAdd.all;render()"></button>`)+
+      row("Empieza",dInp(q.day,"qSetStart(this.value,qAdd.a)")+(q.all?"":tSel(q.a,"qSetStart(qAdd.day,+this.value)")))+
+      row("Termina",dInp(q.all?ymd(addDays(parseYmd(en.d),en.m===0&&q.dur>=1440?-1:0)):en.d,q.all?"qAdd.dur=Math.max(1440,(parseYmd(this.value)-parseYmd(qAdd.day))/60000+1440-qAdd.a);render()":"qSetEnd(this.value,qEnd(qAdd).m)")+(q.all?"":tSel(en.m,"qSetEnd(qEnd(qAdd).d,+this.value)")),q.all)+
+      (q.all?"":`<div class="sub" style="padding:0 14px 10px;text-align:right">Dura ${len}</div>`))}
+    ${grp(row("Repetir",`<select style="${pill}" onchange="qAdd.rep=this.value">${[["no","Nunca"],["dia","Cada día"],["semana","Cada semana"],["2sem","Cada 2 semanas"],["mes","Cada mes"],["anyo","Cada año"]].map(([k,n])=>`<option value="${k}" ${q.rep===k?"selected":""}>${n}</option>`).join("")}</select>`)+
+      row("Aviso",`<select style="${pill}" onchange="qAdd.aviso=this.value">${[["no","Ninguno"],["0","A la hora"],["15","15 min antes"],["60","1 h antes"],["1440","1 día antes"]].map(([k,n])=>`<option value="${k}" ${q.aviso===k?"selected":""}>${n}</option>`).join("")}</select>`,true))}
+    ${grp(`<div style="padding:11px 14px"><div class="sub" style="margin-bottom:8px">${isT?"Categoría":"Tipo"}</div><div class="row" style="gap:6px;flex-wrap:wrap">${isT?Object.keys(cats()).map(c=>`<button class="pill" style="padding:6px 10px;background:${q.cat===c?catCol(c):"var(--soft)"};color:${q.cat===c?"#252D45":"var(--mute)"}" onclick="qAdd.cat='${esc(c)}';render()">${esc(c)}</button>`).join(""):EVCATS.map(c=>`<button class="pill" style="padding:6px 10px;background:${q.ecat===c.k?evCatCol(c):"var(--soft)"};color:${q.ecat===c.k?"#252D45":"var(--mute)"}" onclick="qAdd.ecat=qAdd.ecat==='${c.k}'?null:'${c.k}';render()">${c.e} ${c.n}</button>`).join("")}</div></div>`)}
+    ${grp(`<textarea style="border:0;background:transparent;padding:13px 14px;min-height:90px;font-size:16px" placeholder="Notas" oninput="qAdd.notes=this.value">${esc(q.notes)}</textarea>`)}
+  </div></div>` }
+async function qSave(){ const q=qAdd; if(!q||q.busy) return; const t=q.t.trim(); if(!t) return toast("Escribe el título");
+  const isT=q.kind==="tarea", en=qEnd(q), c=!isT&&EVCATS.find(x=>x.k===q.ecat);
+  if(isT) putDoc("tareas",uid(),{t,fecha:q.day,cat:q.cat,hecho:false,dur:q.dur,creado:new Date().toISOString()});
+  if(!mcp){ qAdd=null; render(); return toast(isT?"Tarea guardada (conecta Google para verla en la hora)":"Conecta Google Calendar para guardar eventos") }
+  const inp={summary:isT?"✅ "+t:(c?c.e+" ":"")+t};
+  if(q.all){ inp.allDay=true; inp.startTime=q.day+"T00:00:00"; const ed=ymd(addDays(parseYmd(q.day),Math.max(1,Math.round(q.dur/1440)))); inp.endTime=ed+"T00:00:00" }
+  else{ inp.startTime=`${q.day}T${mm(q.a)}:00`; inp.endTime=`${en.d}T${mm(en.m)}:00` }
+  if(isT) inp.colorId="8"; else if(c) inp.colorId=c.c;
+  if(q.loc.trim()) inp.location=q.loc.trim(); if(q.notes.trim()) inp.description=q.notes.trim();
+  if(q.aviso==="no") inp.useDefaultReminders=false; else inp.overrideReminders=[{method:"popup",minutes:+q.aviso}];
+  const RR={dia:"FREQ=DAILY",semana:"FREQ=WEEKLY","2sem":"FREQ=WEEKLY;INTERVAL=2",mes:"FREQ=MONTHLY",anyo:"FREQ=YEARLY"}[q.rep]; if(RR) inp.recurrenceData=["RRULE:"+RR];
   q.busy=true; render();
-  try{ await mcp.callTool(CAL,"create_event",{summary:(q.kind==="tarea"?"✅ ":"")+t,startTime:`${q.day}T${mm(q.a)}:00`,endTime:`${q.day}T${mm(b)}:00`,colorId:q.kind==="tarea"?"8":undefined,useDefaultReminders:false});
-    qAdd=null; await calChanged(); toast(`Apuntado a las ${mm(q.a)} ✓`) }
+  try{ await mcp.callTool(CAL,"create_event",inp); agSel=q.day; qAdd=null; await calChanged(); toast(q.all?"Añadido ✓":`Añadido a las ${mm(q.a)} ✓`) }
   catch(e){ q.busy=false; toast("Google no lo aceptó, prueba otra vez") } render() }
 function tlStart(ev){
   if(tab!=="agenda"||!ev.target.closest) return;
@@ -664,8 +686,7 @@ function tlPos(){
   const t=TD.el.querySelector(".tlt"); if(t) t.textContent=mm(TD.na)+"–"+mm(TD.nb);
 }
 async function tlEnd(){ if(!TD) return; const d=TD; TD=null; clearTimeout(d.t); clearInterval(d.as); if(!d.on) return; tlLastDrag=Date.now(); d.el.classList.remove("drag");
-  if(d.mk){ d.el.remove(); qAdd={day:d.tl.dataset.day||agDia,a:d.na,dur:Math.abs(d.cy-d.y0)<6?60:Math.max(15,d.nb-d.na),t:(qAdd&&qAdd.t)||"",kind:(qAdd&&qAdd.kind)||"tarea",cat:(qAdd&&qAdd.cat)||"Personal"}; render();
-    setTimeout(()=>{ const i=document.getElementById("qai"); if(i) i.focus({preventScroll:true}) },50); return }
+  if(d.mk){ d.el.remove(); newQ(d.tl.dataset.day||agDia,d.na,Math.abs(d.cy-d.y0)<6?60:Math.max(15,d.nb-d.na)); return }
   const day=d.tl.dataset.day||agDia, moved=day!==(d.tl0.dataset.day||agDia);
   if(d.na===d.a&&d.nb===d.b&&!moved) return;
   if(d.k==="pr"){ const it=dprop&&dprop.items.find(x=>x.id===d.id); if(it){ it.a=d.na; it.b=d.nb; dprop.items.sort((x,y)=>x.a-y.a) } return render() }
@@ -795,7 +816,7 @@ function vPlan(){
   }
   return h;
 }
-function openNewEv(d){ newEv={t:"",d:d||today(),hi:"10:00",hf:"11:00",all:false,aviso:false,cat:null,rep:"no"}; go('agenda'); window.scrollTo(0,0) }
+function openNewEv(d){ d=d||today(); const n=new Date(), a=d===today()?Math.min(1380,Math.ceil((toMin(n)+1)/60)*60):600; newQ(d,a,60,"evento") }
 const hm=d=>pad(d.getHours())+":"+pad(d.getMinutes());
 function openEditEv(id){
   if(!mcp) return; const e=evById(id); if(!e) return;
@@ -1922,7 +1943,7 @@ function gCfg(){ return `<div class="row between"><h2>Sonido y música</h2><butt
 (function(){ const a=LS.get("gym_actual",null); if(a&&tab==="gym"){} })();
 try{ speechSynthesis.getVoices() }catch(e){}
 (function(){ let u=""; try{ u=location.search+location.hash }catch(e){} if(!/[?#&]nueva\b/.test(u)) return;
-  tab="agenda"; agView="dia"; agDia=today(); const n=new Date(); qAdd={day:today(),a:Math.min(1410,Math.ceil((toMin(n)+1)/30)*30),dur:60,t:"",kind:"tarea",cat:"Personal"};
+  tab="agenda"; agView="dia"; agDia=today(); const n=new Date(); qAdd={day:today(),a:Math.min(1410,Math.ceil((toMin(n)+1)/30)*30),dur:60,t:"",kind:"tarea",cat:"Personal",ecat:null,loc:"",notes:"",all:false,rep:"no",aviso:"no"};
   try{ history.replaceState(null,"",location.pathname) }catch(e){}
   setTimeout(()=>{ const i=document.getElementById("qai"); if(i) i.focus() },400) })();
 render(); initDb(); initCal();
