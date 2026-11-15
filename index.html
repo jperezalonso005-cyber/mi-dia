@@ -63,6 +63,8 @@
   .x{color:var(--mute);font-size:18px;padding:4px 6px}
   .dots{display:flex;gap:4px}
   .dot{width:10px;height:10px;border-radius:50%;background:var(--line)}
+  .tlb{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}.tlb.drag{box-shadow:0 8px 24px #0004;z-index:9!important;opacity:.92}
+  .tlh{position:absolute;left:50%;bottom:2px;width:44px;margin-left:-22px;height:14px;touch-action:none;cursor:ns-resize}.tlh::after{content:"";position:absolute;left:10px;right:10px;top:5px;height:4px;border-radius:3px;background:currentColor;opacity:.35}
   .ev{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
   .ev:last-child{border-bottom:0}
   .ev .bar{width:5px;border-radius:5px;flex:none}
@@ -115,9 +117,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794701233"></script>
-<script src="supabase.js?v=1794701233"></script>
-<script src="standalone.js?v=1794701233"></script>
+<script src="config.js?v=1794701512"></script>
+<script src="supabase.js?v=1794701512"></script>
+<script src="standalone.js?v=1794701512"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -505,16 +507,17 @@ function vDia(){
     <button class="btn small ghost" onclick="moveDia(1)">›</button></div>
     ${day!==td?`<div class="center"><button class="link" onclick="agDia=today();dprop=null;render()">Ir a hoy</button></div>`:""}`;
   if(allD.length) h+=`<div class="card" style="padding:8px 12px">${allD.map(evRow).join("")}</div>`;
-  let tl=`<div style="position:relative;height:${(H1-H0)*60*PX}px;margin-left:44px">`;
+  let tl=`<div id="tl" data-h0="${H0}" data-h1="${H1}" data-px="${PX}" style="position:relative;height:${(H1-H0)*60*PX}px;margin-left:44px">`;
   for(let hh=H0;hh<=H1;hh++) tl+=`<div style="position:absolute;top:${top(hh*60)}px;left:-44px;right:0;border-top:1px solid var(--line)"><span class="sub" style="position:absolute;top:-9px;left:0;font-size:11px;background:var(--card);padding-right:4px">${pad(hh)}:00</span></div>`;
   tl+=`<div style="position:absolute;top:${top(cf.ini)}px;height:${(cf.fin-cf.ini)*PX}px;left:0;right:0;background:var(--soft);opacity:.45;border-radius:10px"></div>`;
   if(day===td){ const nm=toMin(new Date()); if(nm>=H0*60&&nm<=H1*60) tl+=`<div style="position:absolute;top:${top(nm)}px;left:-6px;right:0;border-top:2px solid ${C.poppy};z-index:3"></div>` }
   for(const e of timed){ const a=ymd(e.s)===day?toMin(e.s):0, b=ymd(e.e)===day?toMin(e.e):1440, blk=isBlock(e), dn=blk&&blockDone(e);
-    tl+=`<div onclick="openEditEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;left:0;right:0;background:${e.col};color:#252D45;border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
+    const mv=ymd(e.s)===day&&ymd(e.e)===day;
+    tl+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openEditEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;left:0;right:0;background:${e.col};color:#252D45;border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
       ${blk?`<button class="chk ${dn?"on":""}" style="width:20px;height:20px;font-size:11px;border-color:#252D45;background:${dn?"#fff8":"transparent"}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}
-      <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div></div>` }
-  if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div onclick="dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;left:0;right:0;border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
-      <b>✅ ${esc(it.t)}</b> <span class="sub">${mm(it.a)}–${mm(it.b)} · toca para quitar</span></div>`;
+      <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span class="tlt" style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div>${mv?`<div class="tlh"></div>`:""}</div>` }
+  if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div class="tlb" data-k="pr" data-id="${it.id}" data-a="${it.a}" data-b="${it.b}" onclick="if(!tlNoClick()){dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()}" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;left:0;right:0;border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
+      <b>✅ ${esc(it.t)}</b> <span class="sub"><span class="tlt">${mm(it.a)}–${mm(it.b)}</span> · toca para quitar</span><div class="tlh"></div></div>`;
   h+=`<div class="card" style="padding:14px 12px">${tl}</div></div>`;
   if(dprop&&dprop.day===day){
     h+=`<div class="card" style="border:2px solid ${C.pool}"><b>Propuesta para ${day===td?"hoy":esc(fmtDay(d,{weekday:"long"}))}</b>
@@ -531,9 +534,45 @@ function vDia(){
     :`<div class="sub">No tienes tareas pendientes. Añádelas en Más → Tareas.</div>`}
     <div class="row" style="margin-top:10px;gap:8px;align-items:center"><span class="sub">Disponible de</span><input type="time" style="width:auto" value="${mm(cf.ini)}" onchange="setDiaCfg({ini:t2m(this.value)})"><span class="sub">a</span><input type="time" style="width:auto" value="${mm(cf.fin)}" onchange="setDiaCfg({fin:t2m(this.value)})"></div>
     <div style="margin-top:12px"><button class="btn" onclick="organizar()">✨ Organizar mi día</button></div>
-    <div class="note">Marca las tareas y cuánto te llevan. Las coloco en tus huecos libres (con ${cf.gap} min de respiro entre una y otra), sin tocar lo que ya tienes. Luego marcas ✓ en la agenda y la tarea queda hecha.</div></div>`;
+    <div class="note">Marca las tareas y cuánto te llevan. Las coloco en tus huecos libres (con ${cf.gap} min de respiro entre una y otra), sin tocar lo que ya tienes. Luego marcas ✓ en la agenda y la tarea queda hecha.</div></div>
+    <div class="note">Para mover algo: mantén pulsado un bloque y arrástralo. Para alargarlo o acortarlo, arrastra la rayita de abajo.</div>`;
   return h;
 }
+
+/* Arrastrar bloques en la vista Día: mantener pulsado para mover, rayita de abajo para cambiar la duración */
+let TD=null, tlLastDrag=0;
+const tlNoClick=()=>Date.now()-tlLastDrag<500;
+function tlStart(ev){
+  if(agView!=="dia"||tab!=="agenda") return; const el=ev.target.closest&&ev.target.closest(".tlb[data-k]"); if(!el||ev.target.closest(".chk")) return;
+  const tl=document.getElementById("tl"); const res=!!ev.target.closest(".tlh");
+  TD={el,tl,res,k:el.dataset.k,id:el.dataset.id,a:+el.dataset.a,b:+el.dataset.b,y0:ev.clientY,x0:ev.clientX,on:false,px:+tl.dataset.px,h0:+tl.dataset.h0*60,h1:+tl.dataset.h1*60,top0:parseFloat(el.style.top),hgt0:parseFloat(el.style.height)};
+  TD.na=TD.a; TD.nb=TD.b;
+  if(res){ tlGo(); ev.preventDefault() } else TD.t=setTimeout(tlGo,280);
+}
+function tlGo(){ if(!TD) return; TD.on=true; TD.el.classList.add("drag"); try{navigator.vibrate&&navigator.vibrate(15)}catch(e){} }
+function tlMove(ev){ if(!TD) return; const dy=ev.clientY-TD.y0;
+  if(!TD.on){ if(Math.abs(dy)>8||Math.abs(ev.clientX-TD.x0)>8){ clearTimeout(TD.t); TD=null } return }
+  ev.preventDefault(); const dm=Math.round(dy/TD.px/15)*15, dur=TD.b-TD.a;
+  if(TD.res){ TD.na=TD.a; TD.nb=Math.min(TD.h1,Math.max(TD.a+15,TD.b+dm)) }
+  else{ TD.na=Math.min(TD.h1-dur,Math.max(TD.h0,TD.a+dm)); TD.nb=TD.na+dur }
+  TD.el.style.top=((TD.na-TD.h0)*TD.px+1)+"px"; TD.el.style.height=Math.max(20,(TD.nb-TD.na)*TD.px-2)+"px";
+  const t=TD.el.querySelector(".tlt"); if(t) t.textContent=mm(TD.na)+"–"+mm(TD.nb);
+}
+async function tlEnd(){ if(!TD) return; const d=TD; TD=null; clearTimeout(d.t); if(!d.on) return; tlLastDrag=Date.now(); d.el.classList.remove("drag");
+  if(d.na===d.a&&d.nb===d.b) return;
+  if(d.k==="pr"){ const it=dprop&&dprop.items.find(x=>x.id===d.id); if(it){ it.a=d.na; it.b=d.nb; dprop.items.sort((x,y)=>x.a-y.a) } return render() }
+  if(!mcp) return render();
+  const day=agDia, list=[...(cal.events||[])]; for(const k in rng) list.push(...(rng[k].events||[]));
+  const olds=list.filter(e=>e.id===d.id).map(e=>[e,e.s,e.e]);
+  for(const [e] of olds){ e.s=new Date(parseYmd(day).getTime()+d.na*60000); e.e=new Date(parseYmd(day).getTime()+d.nb*60000) } render();
+  try{ await mcp.callTool(CAL,"update_event",{eventId:d.id,startTime:`${day}T${mm(d.na)}:00`,endTime:`${day}T${mm(d.nb)}:00`}); toast(`Movido a las ${mm(d.na)} ✓`); await calChanged(); render() }
+  catch(x){ for(const [e,s0,e0] of olds){ e.s=s0; e.e=e0 } render(); toast("Google no dejó moverlo") }
+}
+document.addEventListener("pointerdown",tlStart);
+document.addEventListener("pointermove",tlMove,{passive:false});
+document.addEventListener("touchmove",ev=>{ if(TD&&TD.on) ev.preventDefault() },{passive:false});
+["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,tlEnd));
+document.addEventListener("contextmenu",ev=>{ if(ev.target.closest&&ev.target.closest(".tlb")) ev.preventDefault() });
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true},S.app.plan||{});
 function savePlan(p){ putDoc("app","plan",Object.assign({},plan(),p)) }
