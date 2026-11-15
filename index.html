@@ -127,9 +127,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794748409"></script>
-<script src="supabase.js?v=1794748409"></script>
-<script src="standalone.js?v=1794748409"></script>
+<script src="config.js?v=1794748888"></script>
+<script src="supabase.js?v=1794748888"></script>
+<script src="standalone.js?v=1794748888"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -1207,22 +1207,33 @@ function genCompra(){
 }
 /* ---------- Importar receta de TikTok/Instagram: texto del post o capturas ---------- */
 window.mdIAKey=()=>(S.app.ia&&S.app.ia.key)||"";
-window.mdIAStatus=t=>{ if(imp&&imp.busy){ imp.estado=t||"La IA está viendo el vídeo… (puede tardar 20-40 s)"; render() } };
+window.mdIAStatus=t=>{ if(imp&&imp.busy){ imp.estado=t||(imp.vfile?"La IA está viendo el vídeo… (puede tardar 20-40 s)":"La IA está leyendo la receta…"); render() } };
 let imp={url:"",txt:"",fotos:[],busy:false,prev:null,err:"",estado:""}, recVer=null, sampleFn=null, sampleReady=false;
 async function getSample(){ if(sampleReady) return sampleFn; sampleReady=true; try{ sampleFn=await window.claude?.use?.("sample") ?? null }catch(e){ sampleFn=null } return sampleFn }
 const ingList=r=>String(r.ing||"").split(/\n|,(?![^(]*\))/).map(x=>x.trim()).filter(Boolean);
 const pasosList=r=>String(r.pasos||"").split(/\n/).map(x=>x.replace(/^\s*(\d+[\.\)-]|[-•*])\s*/,"").trim()).filter(Boolean);
+const VERBOS=/^(bate|batir|mezcla|mezclar|añade|añadir|agrega|incorpora|corta|cortar|pica|picar|pon|poner|calienta|calentar|cocina|cocinar|hornea|hornear|deja|dejar|sirve|servir|extiende|extender|fríe|freír|frie|dora|dorar|cuece|cocer|hierve|hervir|tritura|triturar|ralla|rallar|lava|pela|pelar|salpimienta|sazona|retira|retirar|vierte|verter|monta|montar|forma|formar|precalienta|enfría|enfriar|reserva|reservar|coloca|colocar|unta|untar|rellena|rellenar|amasa|amasar|aplasta|tapa|tapar|remueve|remover|saltea|saltear|marca|emplata|decora|espolvorea|integra|separa)\b/i;
+const RUIDO=/(gu[aá]rd(a|ala|alo)|s[ií]gueme|dale (like|a me gusta)|comenta|comparte|link en|enlace en|bio\b|ap[uú]ntala|no te lo pierdas|etiqueta a)/i;
+const NOKETO=[["harina","harina de almendra o coco"],["azúcar","eritritol o stevia"],["azucar","eritritol o stevia"],["pan ","pan keto"],["pasta","fideos de calabacín o konjac"],["arroz","arroz de coliflor"],["patata","coliflor o nabo"],["plátano","frutos rojos (poca cantidad)"],["platano","frutos rojos (poca cantidad)"],["avena","semillas de lino o chía"],["muesli","nueces y semillas"],["miel","eritritol"],["maicena","goma xantana"],["leche ","bebida de almendra sin azúcar o nata"],["boniato","calabaza"],["legumbre","verduras bajas en carbohidratos"],["garbanzo","verduras bajas en carbohidratos"],["lenteja","verduras bajas en carbohidratos"]];
+function ketoNota(txt){ const t=" "+txt.toLowerCase()+" ", malos=NOKETO.filter(([k])=>t.includes(k)); if(!malos.length) return "Parece apta para keto ✓ (revisa las cantidades).";
+  return "Para keto cambia: "+[...new Map(malos.map(([k,v])=>[k.trim(),v])).entries()].slice(0,4).map(([k,v])=>`${k} → ${v}`).join("; ")+"." }
+function tipoDe(txt){ const t=txt.toLowerCase(); if(/desayun|tortita|pancake|porridge|caf[eé]|tostada|huevos revueltos|bowl de yogur/.test(t)) return "des"; if(/merienda|postre|bizcocho|galleta|tarta|brownie|muffin|dulce|helado|cookie/.test(t)) return "mer"; if(/\bcena\b|cenar|ligera/.test(t)) return "cen"; return "com" }
 function parseRecetaTexto(t){
-  const lines=t.split(/\n/).map(l=>l.trim()).filter(Boolean); let mode="", n="", ing=[], pas=[];
-  for(const l0 of lines){ if(/^(#[\p{L}\w]+\s*)+$/u.test(l0)) continue; const l=l0.replace(/^[#\s]+/,""), low=l.toLowerCase().replace(/[^\p{L}\s]/gu,"").trim();
-    if(/^(ingredientes?|ingredients|necesitas|lista)/.test(low)){ mode="i"; continue }
-    if(/^(pasos?|preparaci[oó]n|elaboraci[oó]n|instrucciones|steps|method|modo de hacer|c[oó]mo se hace)/.test(low)){ mode="p"; continue }
-    if(!n&&!mode&&l.length<70&&!/^#/.test(l0)){ n=l.replace(/[🔥✨👇⬇️]+/gu,"").trim(); continue }
-    const clean=l.replace(/^(\d+[\.\)-]\s+|[-•*✅▪️🔸]\s*)/u,"").trim(); if(!clean||/^#\w/.test(clean)) continue;
-    if(mode==="i") ing.push(clean); else if(mode==="p") pas.push(clean);
-    else if(/^\d+\s*(g|gr|kg|ml|l|cucharad|cdas?|cdtas?|tazas?|uds?|unidades?|huevos?|lonchas?)\b|^(un|una|dos|tres|medio|media|\d)/i.test(clean)) ing.push(clean);
-    else if(/^\d+[\.\)]/.test(l)||clean.length>45) pas.push(clean); }
-  return {n:n||"Receta importada",ing:ing.join("\n"),pasos:pas.join("\n"),tipo:"com",keto:""};
+  const lines=String(t).split(/\n/).map(l=>l.replace(/#[\p{L}\w]+/gu,"").trim()).filter(Boolean); let mode="", n="", ing=[], pas=[];
+  const addIngs=txt=>txt.split(/,|;|\s+y\s+/i).map(x=>x.replace(/^[\s:.-]+|[\s.]+$/g,"").trim()).filter(x=>x&&x.length<80).forEach(x=>ing.push(x));
+  for(const l of lines){ if(RUIDO.test(l)&&l.length<120) continue;
+    const low=l.toLowerCase().replace(/[^\p{L}\s]/gu," ").trim();
+    const hi=low.match(/^(ingredientes?|ingredients|necesitas|lo que necesitas|lista de la compra)\b/);
+    if(hi){ mode="i"; const rest=l.slice(l.toLowerCase().indexOf(hi[1])+hi[1].length).replace(/^[\s:.-]+/,""); if(rest) addIngs(rest); continue }
+    if(/^(pasos?|preparaci[oó]n|elaboraci[oó]n|instrucciones|steps|method|modo de hacer|c[oó]mo se hace|receta)\b/.test(low)&&l.length<40){ mode="p"; continue }
+    const clean=l.replace(/^(\d+[\.\)-]\s+|paso\s*\d+[:.)-]?\s*|[-•*✅▪️🔸]\s*)/iu,"").replace(/[\p{Extended_Pictographic}️]+/gu,"").trim(); if(!clean) continue;
+    if(!n&&!mode&&clean.length<70&&!VERBOS.test(clean)){ n=clean; continue }
+    if(VERBOS.test(clean)||/^\d+[\.\)]\s/.test(l)&&mode!=="i"&&!/^\d+[\.\)]\s*\d/.test(l)||clean.length>70){ pas.push(clean); continue }
+    if(mode==="p") pas.push(clean);
+    else if(mode==="i"||/^\d+\s*(g|gr|kg|ml|l|cucharad|cdas?|cdtas?|tazas?|uds?|unidades?|huevos?|lonchas?|dientes?)\b|^(un|una|dos|tres|medio|media|pizca|chorro)\b/i.test(clean)||(/^[\d½¼¾]+\s*\p{L}/u.test(clean)&&clean.length<45)) ing.push(clean);
+    else pas.push(clean) }
+  const all=[n,...ing,...pas].join(" ");
+  return {n:(n||"Receta importada").replace(/\s+/g," ").replace(/\s+[!¡.]+$/,"").trim(),ing:ing.join("\n"),pasos:pas.join("\n"),tipo:tipoDe(all),keto:ketoNota(ing.join(" ")||all)};
 }
 /* Sacar fotogramas de un vídeo guardado en el móvil (se hace en el propio móvil, no se sube a ningún sitio) */
 async function framesDeVideo(file,max){
@@ -1266,13 +1277,17 @@ ${imp.txt.slice(0,6000)||"(sin texto)"}`;
     const opts={modelTier:"default"};
     if(useVideo){ opts.video=imp.vfile; const caps=imp.fotos.filter(x=>!x._v); if(caps.length) opts.images=caps }
     else if(imp.fotos.length&&lim&&lim.images) opts.images=imp.fotos;
-    const v=await sp.json(prompt,opts);
+    const tok=imp.tok=Math.random();
+    const v=await Promise.race([sp.json(prompt,opts),new Promise((_,ko)=>setTimeout(()=>ko({code:"timeout"}),useVideo?120000:60000))]);
+    if(imp.tok!==tok) return;
     if(!v||!(v.ing&&v.ing.length)&&!(v.pasos&&v.pasos.length)) throw {code:"empty"};
     imp.prev={n:v.n||"Receta",tipo:["des","com","mer","cen"].includes(v.tipo)?v.tipo:"com",ing:(v.ing||[]).join("\n"),pasos:(v.pasos||[]).join("\n"),keto:v.keto||"",raciones:v.raciones||null,fuente:imp.url};
     imp.busy=false; { render(); window.scrollTo(0,0); return };
   }catch(e){
-    imp.busy=false;
-    if(e&&e.code==="bad_key") imp.err="La clave de IA no es válida. Revísala en Más → Datos → IA para recetas.";
+    if(!imp.busy) return; imp.busy=false;
+    if(e&&e.code==="timeout"&&imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); toast("La IA tardaba mucho: lo he sacado del texto"); render(); return }
+    if(e&&e.code==="timeout") imp.err="La IA no ha respondido a tiempo (¿conexión lenta?). Prueba otra vez, con capturas o pegando el texto del post.";
+    else if(e&&e.code==="bad_key") imp.err="La clave de IA no es válida. Revísala en Más → Datos → IA para recetas.";
     else if(e&&e.code==="rate_limited") imp.err="Gemini (la IA gratuita de Google) está saturado ahora mismo, incluso probando varios modelos. Espera unos minutos y pulsa «Volver a intentar»: el vídeo sigue cargado.";
     else if(e&&e.code==="empty") imp.err="No he encontrado una receta en ese vídeo. Si la explican hablando y el vídeo pesa mucho, pega también la descripción del post.";
     else if(imp.txt.trim()){ imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url}); { render(); window.scrollTo(0,0); return } }
@@ -1308,7 +1323,7 @@ function vImport(){
       <label class="btn small ghost" style="cursor:pointer">🎬 Subir el vídeo${imp.vid?" ✓":""}<input type="file" accept="video/*" style="display:none" onchange="addVideo(this)"></label>
       <label class="btn small ghost" style="cursor:pointer">📷 Capturas${imp.fotos.filter(x=>!x._v).length?` (${imp.fotos.filter(x=>!x._v).length})`:""}<input type="file" accept="image/*" multiple style="display:none" onchange="imp.fotos=[...imp.fotos,...this.files].slice(0,12);render()"></label>
       ${imp.fotos.length?`<button class="link mute" onclick="imp.fotos=[];imp.vid=null;render()">Quitar</button>`:""}</div>`:""}
-    ${imp.busy?`<div class="tile" style="background:${C.daff};margin:10px 0 0;padding:12px">⏳ ${esc(imp.estado||"Leyendo la receta…")}</div>`:""}
+    ${imp.busy?`<div class="tile row between" style="background:${C.daff};margin:10px 0 0;padding:12px;gap:8px"><span>⏳ ${esc(imp.estado||"Leyendo la receta…")}</span><button class="link" style="color:#252D45;white-space:nowrap" onclick="imp.busy=false;imp.tok=0;${"imp.txt.trim()?(imp.prev=Object.assign(parseRecetaTexto(imp.txt),{fuente:imp.url})):(imp.err='Cancelado.');"}render()">Cancelar</button></div>`:""}
     ${imp.err?`<div class="tile" style="background:${C.peach};margin:10px 0 0;padding:12px">${esc(imp.err)}</div>`:""}
     ${imp.busy?"":`<button class="btn" style="margin-top:10px" onclick="importReceta()">${imp.vfile||imp.fotos.length?"Volver a intentar":"Sacar la receta"}</button>`}
     <div class="note">${sampleFn&&window.mdStandalone?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo; Instagram: grabación de pantalla) y súbelo: la IA lo ve y oye el audio. Si pesa más de 18 MB, uso fotogramas.":!sampleFn&&window.mdStandalone?"Para subir vídeos o capturas, añade tu clave gratuita de IA en Más → Datos.":sampleFn?"Guarda el vídeo en el móvil (TikTok: Compartir → Guardar vídeo) y súbelo aquí: saco fotogramas y Claude lee lo que sale en pantalla. El audio no lo oye, así que si la receta solo se dice hablando, pega también la descripción.":"En esta versión leo el texto pegado. Para capturas o textos liosos, mándaselos a Claude en el chat y pega aquí lo que te devuelva."}</div></div>`;
