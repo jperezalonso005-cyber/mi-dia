@@ -125,9 +125,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794747942"></script>
-<script src="supabase.js?v=1794747942"></script>
-<script src="standalone.js?v=1794747942"></script>
+<script src="config.js?v=1794748162"></script>
+<script src="supabase.js?v=1794748162"></script>
+<script src="standalone.js?v=1794748162"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -553,7 +553,7 @@ function vAgenda(){
 function lanes(items){ const out={}, arr=[...items].sort((x,y)=>x.a-y.a||y.b-x.b); let grp=[], end=-1;
   const flush=()=>{ const ln=[]; for(const it of grp){ let i=ln.findIndex(b=>b<=it.a); if(i<0){ i=ln.length; ln.push(0) } ln[i]=it.b; it.i=i } for(const it of grp) out[it.key]=[it.i,ln.length]; grp=[] };
   for(const it of arr){ if(it.a>=end&&grp.length) flush(); grp.push(Object.assign({},it)); end=Math.max(end,it.b) } if(grp.length) flush(); return out }
-const cascCss=(L,k,G)=>{ const [i,n]=L[k]||[0,1]; if(n<2) return `left:1px;width:calc(100% - ${G}px - 2px)`; const off=`(100% - ${G}px)*${(0.45/(n-1)).toFixed(3)}*${i}`; return `left:calc(${off} + 1px);width:calc(100% - ${G}px - ${off} - 2px);z-index:${2+i}` };
+const cascCss=(L,k,G)=>{ const [i,n]=L[k]||[0,1]; if(n<2) return `left:1px;width:calc(100% - ${G}px - 2px)`; const off=`(100% - ${G}px)*${(n===2?0.3:0.45/(n-1)).toFixed(3)}*${i}`; return `left:calc(${off} + 1px);width:calc(100% - ${G}px - ${off} - 2px);z-index:${2+i}` };
 const laneCss=(L,k,g,G)=>{ const [i,n]=L[k]||[0,1]; G=G||0; return `left:calc(${i}*(100% - ${G}px)/${n} + ${g}px);width:calc((100% - ${G}px)/${n} - ${2*g}px)` };
 /* --- DÍA: línea de horas y "Organizar mi día" con las tareas pendientes --- */
 let agDia=today(), dprop=null, dBusy=false;
@@ -690,20 +690,21 @@ async function qSave(){ const q=qAdd; if(!q||q.busy) return; const t=q.t.trim();
   try{ await mcp.callTool(CAL,"create_event",{summary:(q.kind==="tarea"?"✅ ":"")+t,startTime:`${q.day}T${mm(q.a)}:00`,endTime:`${q.day}T${mm(b)}:00`,colorId:q.kind==="tarea"?"8":undefined,useDefaultReminders:false});
     qAdd=null; await calChanged(); toast(`Apuntado a las ${mm(q.a)} ✓`) }
   catch(e){ q.busy=false; toast("Google no lo aceptó, prueba otra vez") } render() }
+function mkGo(){ if(!TD) return; const el=document.createElement("div"); el.className="tlb drag"; el.style.cssText=`position:absolute;left:0;right:0;border:2px dashed ${C.pool};background:var(--soft);border-radius:8px;font-size:12px;padding:2px 6px;z-index:8`;
+  el.innerHTML=`<b>Nueva</b> <span class="tlt"></span>`; TD.tl.appendChild(TD.el=el); tlGo(); tlPos() }
 const zsOf=el=>{ const h=el.offsetHeight; return h?(el.getBoundingClientRect().height/h)||1:1 };
 function tlStart(ev){
   if(tab!=="agenda"||!ev.target.closest) return;
   if(!ev.target.closest(".tlb")){ const tl=ev.target.closest(".tlc"); if(!tl) return; const sc=tl.closest(".tlscroll"), px=+tl.dataset.px, h0=+tl.dataset.h0*60;
     const zs=zsOf(tl), m0=Math.max(0,Math.min(1425,h0+Math.floor((ev.clientY-tl.getBoundingClientRect().top)/(px*zs)/15)*15));
-    TD={mk:true,tl,tl0:tl,sc,st0:sc?sc.scrollTop:0,k:"new",a:m0,b:m0+15,na:m0,nb:m0+60,y0:ev.clientY,x0:ev.clientX,cy:ev.clientY,cx:ev.clientX,on:false,px,zs,h0,h1:+tl.dataset.h1*60};
-    TD.t=setTimeout(()=>{ if(!TD) return; const el=document.createElement("div"); el.className="tlb drag"; el.style.cssText=`position:absolute;left:0;right:0;border:2px dashed ${C.pool};background:var(--soft);border-radius:8px;font-size:12px;padding:2px 6px;z-index:8`;
-      el.innerHTML=`<b>Nueva</b> <span class="tlt"></span>`; TD.tl.appendChild(TD.el=el); tlGo(); tlPos() },260); return }
+    TD={mk:true,tl,tl0:tl,sc,st0:sc?sc.scrollTop:0,k:"new",a:m0,b:m0+15,na:m0,nb:m0+60,y0:ev.clientY,x0:ev.clientX,cy:ev.clientY,cx:ev.clientX,on:false,px,zs,h0,h1:+tl.dataset.h1*60,mouse:ev.pointerType==="mouse"};
+    if(!TD.mouse) TD.t=setTimeout(mkGo,260); return }
   const el=ev.target.closest(".tlb[data-k]"); if(!el||ev.target.closest(".chk")) return;
   const tl=el.closest(".tlc"); if(!tl) return; const res=!!ev.target.closest(".tlh"), grab=!!ev.target.closest(".tlm");
   const sc=el.closest(".tlscroll");
   TD={el,tl,tl0:tl,sc,st0:sc?sc.scrollTop:0,res,k:el.dataset.k,id:el.dataset.id,a:+el.dataset.a,b:+el.dataset.b,y0:ev.clientY,x0:ev.clientX,on:false,px:+tl.dataset.px,h0:+tl.dataset.h0*60,h1:+tl.dataset.h1*60,top0:parseFloat(el.style.top),hgt0:parseFloat(el.style.height)};
-  TD.na=TD.a; TD.nb=TD.b; TD.cy=ev.clientY; TD.cx=ev.clientX; TD.zs=zsOf(tl);
-  if(res||grab){ tlGo(); ev.preventDefault() } else TD.t=setTimeout(tlGo,280);
+  TD.na=TD.a; TD.nb=TD.b; TD.cy=ev.clientY; TD.cx=ev.clientX; TD.zs=zsOf(tl); TD.mouse=ev.pointerType==="mouse";
+  if(res||grab){ tlGo(); ev.preventDefault() } else if(!TD.mouse) TD.t=setTimeout(tlGo,280);
 }
 function tlGo(){ if(!TD) return; TD.on=true; TD.el.classList.add("drag"); try{navigator.vibrate&&navigator.vibrate(15)}catch(e){}
   TD.as=setInterval(()=>{ if(!TD||!TD.on||!TD.sc) return; const r=TD.sc.getBoundingClientRect(), E=50;
@@ -711,7 +712,9 @@ function tlGo(){ if(!TD) return; TD.on=true; TD.el.classList.add("drag"); try{na
     const sx=TD.k==="ev"&&TD.cx>r.right-30?10:TD.k==="ev"&&TD.cx<r.left+50?-10:0;
     if(sy) TD.sc.scrollTop+=sy; if(sx) TD.sc.scrollLeft+=sx; if(sy||sx) tlPos() },16) }
 function tlMove(ev){ if(!TD) return; const dy=ev.clientY-TD.y0;
-  if(!TD.on){ if(Math.abs(dy)>8||Math.abs(ev.clientX-TD.x0)>8){ clearTimeout(TD.t); TD=null } return }
+  if(!TD.on){ const far=Math.abs(dy)>5||Math.abs(ev.clientX-TD.x0)>5;
+    if(far&&TD.mouse){ TD.cy=ev.clientY; TD.cx=ev.clientX; if(TD.mk) mkGo(); else tlGo(); if(TD&&TD.on){ ev.preventDefault&&ev.preventDefault(); tlPos() } return }
+    if(Math.abs(dy)>8||Math.abs(ev.clientX-TD.x0)>8){ clearTimeout(TD.t); TD=null } return }
   ev.preventDefault(); TD.cy=ev.clientY; TD.cx=ev.clientX; tlPos() }
 function tlPos(){
   if(TD.mk){ const r=TD.tl.getBoundingClientRect(), cur=Math.max(TD.h0,Math.min(TD.h1,TD.h0+Math.round((TD.cy-r.top)/(TD.px*TD.zs)/15)*15));
