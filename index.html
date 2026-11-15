@@ -26,6 +26,7 @@
   html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 "Lexend",-apple-system,system-ui,sans-serif}
   body{padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 96px)}
   .wrap{max-width:540px;margin:0 auto}
+  @media (min-width:900px){ .wrap{max-width:none;margin:0 12px} .tlscroll{max-height:calc(100vh - 260px)!important} .tabs{justify-content:center} }
   h1{font-size:28px;font-weight:800;margin:2px 0;letter-spacing:-.5px}
   h2{font-size:20px;font-weight:700;margin:0}
   .cap{font-weight:800;text-transform:uppercase;letter-spacing:.06em;font-size:13px}
@@ -118,9 +119,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794746160"></script>
-<script src="supabase.js?v=1794746160"></script>
-<script src="standalone.js?v=1794746160"></script>
+<script src="config.js?v=1794746560"></script>
+<script src="supabase.js?v=1794746560"></script>
+<script src="standalone.js?v=1794746560"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -492,7 +493,7 @@ function vCols(base){
     allD.slice(0,2).forEach((e,i)=>{ h+=`<div class="tlb" onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${i*16}px;left:2px;right:2px;height:14px;background:${e.col};color:#252D45;border-radius:5px;font-size:9px;font-weight:700;padding:0 3px;overflow:hidden;white-space:nowrap;z-index:2">${esc(e.t)}</div>` });
     const L=lanes(timed.map(e=>({key:e.id,a:ymd(e.s)===k?toMin(e.s):0,b:ymd(e.e)===k?toMin(e.e):1440})));
     for(const e of timed){ const a=ymd(e.s)===k?toMin(e.s):0, b=ymd(e.e)===k?toMin(e.e):1440, mv=ymd(e.s)===k&&ymd(e.e)===k, dn=isBlock(e)&&blockDone(e);
-      h+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${Math.max(0,top(a))+1}px;height:${Math.max(16,(b-Math.max(a,H0*60))*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:5px;padding:1px 2px;font-size:9px;line-height:1.15;overflow:hidden;word-break:break-word;z-index:2;${dn?"opacity:.5":""}">
+      h+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${Math.max(0,top(a))+1}px;height:${Math.max(16,(b-Math.max(a,H0*60))*PX-2)}px;${laneCss(L,e.id,1,10)};background:${e.col};color:#252D45;border-radius:5px;padding:1px 2px;font-size:9px;line-height:1.15;overflow:hidden;word-break:break-word;z-index:2;${dn?"opacity:.5":""}">
         <b style="display:block;${dn?"text-decoration:line-through":""}">${esc(e.t)}</b><span class="tlt" style="opacity:.75">${fmtTime(e.s)}</span>${mv?`<div class="tlm" title="Mover"></div><div class="tlh"></div>`:""}</div>` }
     if(qAdd&&qAdd.day===k) h+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(16,Math.min(qAdd.dur,1440-qAdd.a)*PX-2)}px;left:2px;right:2px;border:2px dashed ${C.pool};background:var(--soft);border-radius:7px;font-size:10px;padding:2px 4px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b></div>`;
     h+=`</div></div>`; }
@@ -512,7 +513,7 @@ function vAgenda(){
 function lanes(items){ const out={}, arr=[...items].sort((x,y)=>x.a-y.a||y.b-x.b); let grp=[], end=-1;
   const flush=()=>{ const ln=[]; for(const it of grp){ let i=ln.findIndex(b=>b<=it.a); if(i<0){ i=ln.length; ln.push(0) } ln[i]=it.b; it.i=i } for(const it of grp) out[it.key]=[it.i,ln.length]; grp=[] };
   for(const it of arr){ if(it.a>=end&&grp.length) flush(); grp.push(Object.assign({},it)); end=Math.max(end,it.b) } if(grp.length) flush(); return out }
-const laneCss=(L,k,g)=>{ const [i,n]=L[k]||[0,1]; return `left:calc(${i}*100%/${n} + ${g}px);width:calc(100%/${n} - ${2*g}px)` };
+const laneCss=(L,k,g,G)=>{ const [i,n]=L[k]||[0,1]; G=G||0; return `left:calc(${i}*(100% - ${G}px)/${n} + ${g}px);width:calc((100% - ${G}px)/${n} - ${2*g}px)` };
 /* --- DÍA: línea de horas y "Organizar mi día" con las tareas pendientes --- */
 let agDia=today(), dprop=null, dBusy=false;
 const diaCfg=()=>Object.assign({ini:540,fin:1260,gap:10},S.app.dia||{});
@@ -579,10 +580,10 @@ function vDia(){
   const L=lanes(timed.map(e=>({key:e.id,a:ymd(e.s)===day?toMin(e.s):0,b:ymd(e.e)===day?toMin(e.e):1440})).concat(PR.map(it=>({key:it.id,a:it.a,b:it.b}))));
   for(const e of timed){ const a=ymd(e.s)===day?toMin(e.s):0, b=ymd(e.e)===day?toMin(e.e):1440, blk=isBlock(e), dn=blk&&blockDone(e);
     const mv=ymd(e.s)===day&&ymd(e.e)===day;
-    tl+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:10px;padding:3px 6px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
+    tl+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;${laneCss(L,e.id,1,44)};background:${e.col};color:#252D45;border-radius:10px;padding:3px 6px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
       ${blk?`<button class="chk ${dn?"on":""}" style="width:20px;height:20px;font-size:11px;border-color:#252D45;background:${dn?"#fff8":"transparent"}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}
       <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span class="tlt" style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div>${mv?`<div class="tlm" title="Mover"></div><div class="tlh"></div>`:""}</div>` }
-  if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div class="tlb" data-k="pr" data-id="${it.id}" data-a="${it.a}" data-b="${it.b}" onclick="if(!tlNoClick()){dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()}" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;${laneCss(L,it.id,1)};border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
+  if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div class="tlb" data-k="pr" data-id="${it.id}" data-a="${it.a}" data-b="${it.b}" onclick="if(!tlNoClick()){dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()}" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;${laneCss(L,it.id,1,44)};border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
       <b>✅ ${esc(it.t)}</b> <span class="sub"><span class="tlt">${mm(it.a)}–${mm(it.b)}</span> · toca para quitar</span><div class="tlm" title="Mover"></div><div class="tlh"></div></div>`;
   if(qAdd&&qAdd.day===day) tl+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(20,Math.min(qAdd.dur,1440-qAdd.a)*PX-2)}px;left:0;right:0;border:2px dashed ${C.pool};background:var(--soft);border-radius:10px;padding:3px 8px;font-size:13px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b> <span class="sub">${mm(qAdd.a)}–${mm(qAdd.a+qAdd.dur)}</span></div>`;
   const fst=timed.length?Math.min(...timed.map(e=>ymd(e.s)===day?toMin(e.s):0)):cf.ini, stM=day===td?toMin(new Date())-60:Math.min(fst,cf.ini)-30;
@@ -595,7 +596,7 @@ function vDia(){
       <div class="row" style="margin-top:10px;gap:8px">${mcp&&dprop.items.length?`<button class="btn small ok" style="flex:1" ${dBusy?"disabled":""} onclick="guardarDia()">${dBusy?"Guardando…":"💾 Guardar en mi día"}</button>`:""}
       <button class="btn small ghost" onclick="organizar()">↻ Rehacer</button><button class="link mute" onclick="dprop=null;render()">Descartar</button></div>
       ${!mcp?`<div class="note">Conecta Google Calendar para guardarlo.</div>`:""}</div>` }
-  h+=`<div class="note">Toca un evento para verlo. Toca una hora vacía para apuntar algo, o mantén pulsado un hueco y arrastra para elegir de qué hora a qué hora. Para mover un evento arrastra los puntitos de arriba a la derecha (o mantén pulsado el evento); la rayita de abajo cambia cuánto dura.</div>`;
+  h+=`<div class="note">Toca un evento para verlo. Toca una hora vacía (o la franja libre de la derecha, aunque haya algo) para apuntar algo, o mantén pulsado un hueco y arrastra para elegir de qué hora a qué hora. Para mover un evento arrastra los puntitos de arriba a la derecha (o mantén pulsado el evento); la rayita de abajo cambia cuánto dura.</div>`;
   return h;
 }
 
