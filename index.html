@@ -115,9 +115,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794699877"></script>
-<script src="supabase.js?v=1794699877"></script>
-<script src="standalone.js?v=1794699877"></script>
+<script src="config.js?v=1794700901"></script>
+<script src="supabase.js?v=1794700901"></script>
+<script src="standalone.js?v=1794700901"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -157,7 +157,7 @@ function applyTheme(){
   try{ if(typeof HCOL!=="undefined") HCOL.splice(0,HCOL.length,C.pool,C.fuchsia,C.sky,C.hay,C.lav,C.poppy,C.sage,C.egg); }catch(e){}
   try{ if(typeof VTIPOS!=="undefined"){ const ro=t.roles||{}; VTIPOS.vocab.col=ro["ing:vocab"]||C.sky; VTIPOS.error.col=ro["ing:error"]||C.poppy; VTIPOS.frase.col=ro["ing:frase"]||C.pool } }catch(e){}
   try{ if(typeof DEF_ASIG!=="undefined"){ const m={rxdet:"pool",ee:"peach",aa:"sage",mn:"lav"}; for(const a of DEF_ASIG) a.col=C[m[a.id]] } }catch(e){}
-  try{ if(typeof DEF_RUTINA!=="undefined"){ const m={lunes:"lav",martes:"sky",miercoles:"peach",jueves:"daff",viernes:"cotton",finde:"pool"}; for(const r of DEF_RUTINA) r.col=C[m[r.id]] } }catch(e){}
+  try{ if(typeof DEF_RUTINA!=="undefined"){ const m={lunes:"lav",martes:"sky",miercoles:"peach",jueves:"daff",viernes:"cotton",sabado:"pool",domingo:"sage"}; for(const r of DEF_RUTINA) r.col=C[m[r.id]] } }catch(e){}
   const R=document.documentElement, dark=t.modo==="oscuro"||(t.modo==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);
   R.classList.toggle("dark",t.modo==="oscuro"); R.classList.toggle("light",t.modo==="claro");
   const v=dark?{"--bg":C.night==="#252D45"?"#1B2133":shade(C.night,-.25),"--card":C.night,"--ink":"#FBF7F0","--mute":"#A9AEC2","--line":shade(C.night,.12),"--soft":shade(C.night,.07)}
@@ -460,7 +460,7 @@ function vAgenda(){
   return h;
 }
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
-const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5],semana:"proxima",manana:true},S.app.plan||{});
+const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true},S.app.plan||{});
 function savePlan(p){ putDoc("app","plan",Object.assign({},plan(),p)) }
 let prop=null, propBusy=false;
 const asigHours=code=>{ const v=plan().asigH[code]; return v==null?2:v };
@@ -486,8 +486,8 @@ async function genPlan(){
     return {d,free:freeSlots(d,busy,wkend?[[10*60,14*60]]:[[9*60,14*60],[16*60,21*60]]),n:0,wkend} });
   const add=(c,dur,title,cat,pref)=>{ const sl=takeSlot(c.free,dur,pref); if(!sl) return false; out.push({id:uid(),d:ymd(c.d),a:sl[0],b:sl[1],t:title,cat}); c.n++; return true };
   // gym
-  for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["finde","lunes","martes","miercoles","jueves","viernes","finde"][dow]);
-    if(R&&R.id==="martes") continue; add(c,105,`💪 Gym · ${R?R.t:"entreno"}`,"deporte",P.manana) }
+  for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][dow]);
+    if(R&&(R.id==="martes"||R.id==="domingo")) continue; R&&R.id==="sabado"?add(c,50,"🏃‍♀️ Correr · semana "+runWeek(),"deporte",true):add(c,105,`💪 Gym · ${R?R.t:"entreno"}`,"deporte",P.manana) }
   // estudio: TFG en bloques de 2 h, asignaturas de 1 h 30
   const queue=[]; for(let i=0;i<Math.ceil(P.tfgH/2);i++) queue.push(["🎓 TFG",120,"tfg"]);
   for(const a of asigs()){ const n=asigTemasN(a.code), pend=temasPend(a.code);
@@ -1355,8 +1355,8 @@ function hoyCard(k,d){
   if(k==="gym"){ const R=rutina().find(r=>r.id===todayId())||rutina()[0], doneToday=sesList().some(s=>s.fecha&&ymd(new Date(s.fecha))===td&&s.ej?.some(e=>e.sets.length));
     const wkStart=addDays(new Date(),-((new Date().getDay()+6)%7)); wkStart.setHours(0,0,0,0);
     const wkN=new Set(sesList().filter(s=>new Date(s.fecha)>=wkStart&&s.ej?.some(e=>e.sets.length)).map(s=>ymd(new Date(s.fecha)))).size;
-    return `<div class="tile" style="${hs('t:gym','lav')}"><div class="row between"><span class="cap">Gym · ${esc(R.dia)}</span><span class="pill" style="background:#fff8">${wkN}/5 esta semana</span></div>
-      <div style="font-size:22px;font-weight:800;margin:6px 0 10px">${esc(R.t)}</div>
+    return `<div class="tile" style="${hs('t:gym','lav')}"><div class="row between"><span class="cap">Gym · ${esc(R.dia)}</span><span class="pill" style="background:#fff8">${wkN}/6 esta semana</span></div>
+      <div style="font-size:22px;font-weight:800;margin:6px 0 10px">${esc(R.t)}${R.ex.some(e=>e.run)?` · semana ${runWeek()}`:""}</div>${R.ex.some(e=>e.run)?`<div class="sub" style="color:inherit;margin:-6px 0 10px">${esc(runDesc(runWeek()))}</div>`:""}
       ${W?`<button class="btn" onclick="go('gym')">Seguir entreno</button>`:doneToday?`<div style="font-weight:700">Hecho hoy ✓</div>`:`<button class="btn" onclick="go('gym');startDay('${R.id}')">Empezar</button>`}</div>` }
   if(k==="habitos") return `<div class="card"><div class="head" style="${hs('h:Hábitos','pool')}"><span class="cap">Hábitos</span><button class="link" style="color:#fff" onclick="go('habitos')">Ver</button></div><div class="list">${habRows(false)}</div></div>`;
   if(k==="comida"){ const m=menu()[todayKey()]||{};
@@ -1387,26 +1387,37 @@ function vHoy(){
 
 /* ================= GYM ================= */
 const DEF_RUTINA=[
-  {id:"lunes",dia:"Lunes",t:"Glúteo y femoral",col:C.lav,ex:[
-    {n:"Abductora (activación)",s:2,r:"20",d:60},{n:"Hip thrust",s:4,r:"8-10",d:120},
-    {n:"Prensa a una pierna (pie alto)",s:3,r:"10-12 por pierna",d:90},{n:"Peso muerto rumano mancuernas",s:3,r:"10",d:90},
-    {n:"Curl femoral tumbado",s:3,r:"12",d:60},{n:"Hiperextensiones 45º",s:3,r:"12",d:60},
-    {n:"Dead bug",s:3,r:"10 por lado",d:45,nw:true},{n:"Plancha lateral",s:3,r:"30 s por lado",t:30,d:30,nw:true},{n:"Cinta inclinada",cardio:20}]},
+  {id:"lunes",dia:"Lunes",t:"Glúteo (fuerte)",col:C.lav,ex:[
+    {n:"Abductora (activación)",s:2,r:"20",d:60},{n:"Hip thrust",s:4,r:"6-8",d:150,help:"Pesado: la última rep cuesta"},
+    {n:"Peso muerto rumano mancuernas",s:3,r:"8-10",d:120},{n:"Prensa a una pierna (pie alto)",s:3,r:"10-12 por pierna",d:90},
+    {n:"Hiperextensiones 45º (glúteo)",s:3,r:"12-15",d:60,help:"Espalda redondeada, aprieta glúteo arriba"},{n:"Abductora",s:3,r:"15-20",d:60},
+    {n:"Dead bug",s:3,r:"10 por lado",d:45,nw:true},{n:"Plancha lateral",s:3,r:"30 s por lado",t:30,d:30,nw:true},{n:"Cinta inclinada",cardio:15}]},
   {id:"martes",dia:"Martes",t:"Body Pump 21:00",col:C.sky,ex:[{n:"Body Pump",cardio:60}]},
-  {id:"miercoles",dia:"Miércoles",t:"Espalda y bíceps",col:C.peach,ex:[
-    {n:"Dominadas asistidas",s:3,r:"6-8",d:120,help:"Apunta el contrapeso"},{n:"Jalón al pecho",s:3,r:"10",d:90},
-    {n:"Remo sentado",s:4,r:"10",d:90},{n:"Face pull",s:3,r:"15",d:60},{n:"Curl bíceps polea",s:3,r:"12",d:60},
-    {n:"Pallof press",s:3,r:"12 por lado",d:45},{n:"Elevación de rodillas",s:3,r:"10-12",d:45,nw:true},{n:"Elíptica",cardio:20}]},
-  {id:"jueves",dia:"Jueves",t:"Pierna",col:C.daff,ex:[
-    {n:"Sentadilla Smith / hack",s:4,r:"10",d:120},{n:"Prensa (pies a media altura)",s:3,r:"12",d:90},
-    {n:"Extensión cuádriceps a una pierna",s:3,r:"12 por pierna",d:60},{n:"Aductora",s:3,r:"15",d:60},{n:"Gemelo máquina",s:3,r:"15",d:45},
-    {n:"Plancha",s:3,r:"40 s",t:40,d:30,nw:true},{n:"Crunch en polea",s:3,r:"15",d:45},{n:"Escaleras",cardio:15}]},
+  {id:"miercoles",dia:"Miércoles",t:"Espalda, escápulas y bíceps",col:C.peach,ex:[
+    {n:"Dominadas asistidas",s:3,r:"6-8",d:120,help:"Apunta el contrapeso"},{n:"Remo sentado con pausa",s:4,r:"10",d:90,help:"Junta escápulas 1 s atrás"},
+    {n:"Retracciones escapulares en jalón",s:3,r:"12",d:60,help:"Brazos rectos, solo bajas escápulas"},{n:"Face pull",s:3,r:"15",d:60},
+    {n:"Pájaros en máquina",s:3,r:"15",d:60},{n:"Curl bíceps polea",s:3,r:"12",d:60},{n:"Curl martillo",s:3,r:"12",d:60},
+    {n:"Bird dog",s:3,r:"10 por lado",d:45,nw:true},{n:"Hollow hold",s:3,r:"20-30 s",t:25,d:30,nw:true},{n:"Elíptica",cardio:15}]},
+  {id:"jueves",dia:"Jueves",t:"Pierna + glúteo",col:C.daff,ex:[
+    {n:"Sentadilla Smith / hack",s:4,r:"8-10",d:120},{n:"Puente de glúteo en Smith",s:3,r:"10-12",d:90},
+    {n:"Step-up",s:3,r:"10 por pierna",d:75},{n:"Extensión cuádriceps",s:3,r:"12",d:60},{n:"Curl femoral sentado",s:3,r:"12",d:60},
+    {n:"Plancha",s:3,r:"40 s",t:40,d:30,nw:true},{n:"Elevación de piernas tumbada",s:3,r:"12",d:45,nw:true}]},
   {id:"viernes",dia:"Viernes",t:"Hombro y brazos",col:C.cotton,ex:[
-    {n:"Press hombro máquina",s:4,r:"10",d:90},{n:"Elevación lateral polea",s:3,r:"12-15 por brazo",d:60},
-    {n:"Curl bíceps + tríceps cuerda",s:3,r:"12",d:75,pair:["Curl","Tríceps"]},{n:"Curl martillo + extensión tríceps",s:3,r:"12",d:75,pair:["Martillo","Tríceps"]},
-    {n:"Intervalos en cinta",cardio:16,help:"1 min trote + 1 min andar"}]},
-  {id:"finde",dia:"Fin de semana",t:"Carrera suave",col:C.pool,ex:[{n:"Carrera suave",cardio:25,help:"Empieza con 2 min correr + 1 min andar"}]}
+    {n:"Press hombro máquina",s:3,r:"10",d:90},{n:"Curl bíceps barra Z",s:3,r:"10",d:75},{n:"Extensión tríceps polea",s:3,r:"12",d:60},
+    {n:"Curl bíceps + tríceps cuerda",s:3,r:"12",d:75,pair:["Curl","Tríceps"]},{n:"Curl martillo + tríceps sobre cabeza",s:3,r:"12",d:75,pair:["Martillo","Tríceps"]},
+    {n:"Dead bug",s:3,r:"10 por lado",d:45,nw:true},{n:"Plancha lateral",s:3,r:"30 s por lado",t:30,d:30,nw:true},{n:"Bici o elíptica",cardio:15}]},
+  {id:"sabado",dia:"Sábado",t:"Correr",col:C.pool,ex:[{n:"Plan de correr",run:true}]},
+  {id:"domingo",dia:"Domingo",t:"Descanso",col:C.sage,ex:[{n:"Paseo o estiramientos",cardio:30,help:"Opcional"}]}
 ];
+const RUN_PLAN=[[8,60,90],[6,120,90],[5,180,90],[4,240,90],[3,360,90],[2,600,120],[2,720,60],[1,1500,0]];
+const runWeek=()=>Math.min(8,Math.max(1,(S.app.correr&&S.app.correr.semana)||1));
+function runSegs(w){ const [n,c,a]=RUN_PLAN[w-1], g=[{k:"Anda rápido",s:300}];
+  for(let i=0;i<n;i++){ g.push({k:"Corre",s:c,run:true}); if(i<n-1&&a) g.push({k:"Anda",s:a}) } g.push({k:"Anda suave",s:300}); return g }
+const runMin=w=>Math.round(runSegs(w).reduce((t,x)=>t+x.s,0)/60);
+const durTxt=s=>s%60?(s>=60?Math.floor(s/60)+":"+pad(s%60):s+" s"):(s/60)+" min";
+function runDesc(w){ const [n,c,a]=RUN_PLAN[w-1]; return n===1?`${durTxt(c)} seguidos corriendo`:`${n} × (${durTxt(c)} correr + ${durTxt(a)} andar)` }
+function setRunWeek(w){ putDoc("app","correr",Object.assign({},S.app.correr,{semana:Math.min(8,Math.max(1,w))})); render() }
+const segSay=g=>{ const m=Math.floor(g.s/60),r=g.s%60; return `${g.k}, ${m?`${m} ${m===1?"minuto":"minutos"}${r===30?" y medio":r?` y ${r} segundos`:""}`:`${r} segundos`}` };
 const rutina=()=>(S.app.rutina&&S.app.rutina.dias)||DEF_RUTINA;
 function saveRut(dias){ putDoc("app","rutina",{dias:clone(dias)}) }
 let cfg=Object.assign({voz:true,pitidos:true},LS.get("gym_cfg",{}));
@@ -1415,10 +1426,10 @@ const sesList=()=>Object.values(S.sesiones).filter(s=>s&&s.fecha).sort((a,b)=>b.
 const spotifyUrl=()=>(S.app.gym&&S.app.gym.playlist)||"https://open.spotify.com/";
 function setPlaylist(v){ v=v.trim(); if(v&&!/^https:\/\/(open\.)?spotify\.(com|link)\//.test(v)) return toast("Pega un enlace de Spotify (Compartir → Copiar enlace)"); putDoc("app","gym",Object.assign({},S.app.gym,{playlist:v||null})); toast(v?"Playlist guardada ✓":"Playlist quitada"); }
 const spotBtn=(txt)=>`<a class="btn spot" href="${esc(spotifyUrl())}" target="_blank" rel="noopener">🎵 ${txt}</a>`;
-function todayId(){ return ["finde","lunes","martes","miercoles","jueves","viernes","finde"][new Date().getDay()] }
+function todayId(){ return ["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][new Date().getDay()] }
 function lastFor(n,ex){ for(const s of sesList()){ if(s.id===ex) continue; const e=(s.ej||[]).find(x=>x.n===n); if(e&&e.sets&&e.sets.length) return {sets:e.sets,fecha:s.fecha} } return null }
 function bestFor(n){ let b=0; for(const s of sesList()){ const e=(s.ej||[]).find(x=>x.n===n); if(e) for(const st of e.sets||[]) if(+st.kg>b) b=+st.kg } return b||null }
-function setTxt(st,pair){ if(st.min!=null) return st.min+" min"; if(st.seg!=null) return st.seg+" s"; return pair?`${kgTxt(st.kg)}/${kgTxt(st.kg2)}×${st.reps}`:(st.kg?`${kgTxt(st.kg)}×${st.reps}`:`${st.reps} reps`) }
+function setTxt(st,pair){ if(st.semana!=null) return `Semana ${st.semana} · ${st.min} min`; if(st.min!=null) return st.min+" min"; if(st.seg!=null) return st.seg+" s"; return pair?`${kgTxt(st.kg)}/${kgTxt(st.kg2)}×${st.reps}`:(st.kg?`${kgTxt(st.kg)}×${st.reps}`:`${st.reps} reps`) }
 
 /* Audio que convive con Spotify: en reposo "ambient" (se mezcla, no corta la música);
    durante un aviso "transient" (baja un momento la música y luego la devuelve). */
@@ -1437,15 +1448,15 @@ let wakeOk=null;
 async function keepAwake(){ try{ if("wakeLock" in navigator){ wake=await navigator.wakeLock.request("screen"); wakeOk=true; wake.addEventListener("release",()=>{ if(document.visibilityState==="visible"&&(W||pocket)) keepAwake() }) } else wakeOk=false }catch(e){ wakeOk=false } }
 /* Modo bolsillo: pantalla negra, toques bloqueados, el móvil no se bloquea y los avisos siguen. Mantener pulsado para salir. */
 let pocket=false, holdT=null;
-function pocketOn(){ unlockAudio(); keepAwake(); pocket=true; if(W) W.autoPocket=true; render(); say("Modo bolsillo. Te aviso cuando acabe el descanso") }
+function pocketOn(){ unlockAudio(); keepAwake(); pocket=true; if(W) W.autoPocket=true; render(); say(W&&W.run?"Modo bolsillo. Te aviso en cada cambio":"Modo bolsillo. Te aviso cuando acabe el descanso") }
 let pocketExitAt=0;
 function pocketOff(){ pocket=false; pocketExitAt=Date.now(); clearTimeout(holdT); render() }
 function pocketHtml(){
   if(!pocket||!W) return "";
   const e=cur(), r=rec(), o=W.rest||W.work;
   const left=o?Math.ceil((o.end-Date.now())/1000):null;
-  const top=W.rest?"Descanso":W.work?esc(e.n):"Toca hacer";
-  const line=W.rest?`Después: ${esc(e.n)}${!e.cardio?` · serie ${r.sets.length+1}/${e.s}`:""}`:(o?"":`${esc(e.n)}${!e.cardio?` · serie ${Math.min(r.sets.length+1,e.s)}/${e.s}`:""}`);
+  const top=W.rest?"Descanso":W.work?(W.run?esc(W.run.segs[W.run.i].k):esc(e.n)):"Toca hacer";
+  const line=W.run&&W.work?(W.run.segs[W.run.i+1]?`Después: ${esc(W.run.segs[W.run.i+1].k)} ${durTxt(W.run.segs[W.run.i+1].s)}`:"Último tramo"):W.rest?`Después: ${esc(e.n)}${!e.cardio&&!e.run?` · serie ${r.sets.length+1}/${e.s}`:""}`:(o?"":`${esc(e.n)}${!e.cardio&&!e.run?` · serie ${Math.min(r.sets.length+1,e.s)}/${e.s}`:""}`);
   return `<div class="pocket"><div style="font-size:15px;letter-spacing:.1em;text-transform:uppercase">${top}</div>
     <div class="pc" id="pcd">${left!=null?mmss(left):"💪"}</div><div style="font-size:15px">${line}</div>
     <div class="ring" id="pring">mantén<br>pulsado</div>
@@ -1465,7 +1476,7 @@ function startDay(id){
 }
 function resume(){ const s=LS.get("gym_actual",null); if(!s) return; const R=rutina().find(r=>r.id===s.rid); if(!R){LS.del("gym_actual");return}
   unlockAudio(); keepAwake(); let i=R.ex.findIndex((e,k)=>!exDone(e,s.ej[k])); if(i<0) i=R.ex.length-1; W={s,R,i}; prefill(); gv="work"; render(); }
-const exDone=(e,r)=>!!r&&(e.cardio?r.sets.length>0:r.sets.length>=e.s);
+const exDone=(e,r)=>!!r&&(e.cardio||e.run?r.sets.length>0:r.sets.length>=e.s);
 const cur=()=>W.R.ex[W.i], rec=()=>W.s.ej[W.i];
 function prefill(){ const e=cur(),done=rec().sets,last=lastFor(e.n,W.s.id),i=done.length;
   const p=done[i-1]||(last&&(last.sets[i]||last.sets[last.sets.length-1]))||null;
@@ -1473,6 +1484,7 @@ function prefill(){ const e=cur(),done=rec().sets,last=lastFor(e.n,W.s.id),i=don
 function saveW(){ LS.set("gym_actual",W.s); putDoc("sesiones",W.s.id,W.s) }
 function logSet(){
   const e=cur(),r=rec();
+  if(e.run){ const w=runWeek(); r.sets.push({semana:w,min:runMin(w)}); saveW(); return nextEx(true) }
   if(e.cardio){ r.sets.push({min:e.cardio}); saveW(); return nextEx(true) }
   if(e.t) r.sets.push({seg:e.t}); else r.sets.push(e.pair?{kg:num(W.kg),kg2:num(W.kg2),reps:+W.reps}:{kg:e.nw?0:num(W.kg),reps:+W.reps});
   saveW(); const fin=r.sets.length>=e.s; if(fin&&W.i===W.R.ex.length-1) return finish(); startRest(e.d||60,fin);
@@ -1481,12 +1493,18 @@ function undoSet(){ const r=rec(); if(r.sets.length){ r.sets.pop(); saveW(); pre
 function startRest(sec,mv){ W.rest={end:Date.now()+sec*1000,total:sec,warned:false}; if(W.autoPocket) pocket=true; if(mv) W.i=Math.min(W.i+1,W.R.ex.length-1); prefill(); gv="rest"; beep(1,660); runT(); render() }
 function endRest(silent){ if(!W||!W.rest) return; W.rest=null; stopT(); gv="work"; render(); if(silent) return; beep(3,990);
   const e=cur(),k=rec().sets.length+1;
-  if(e.cardio) say(`Descanso terminado. Ahora: ${e.n}, ${e.cardio} minutos`);
+  if(e.run) say(`Descanso terminado. Ahora: correr`);
+  else if(e.cardio) say(`Descanso terminado. Ahora: ${e.n}, ${e.cardio} minutos`);
   else if(k===1) say(`Descanso terminado. Siguiente ejercicio: ${e.n}. ${e.s} series de ${e.r}${W.kg&&!e.nw?`, con ${kgTxt(W.kg)} kilos`:""}`);
   else say(`Descanso terminado. Serie ${k} de ${e.s}, ${e.n}`); }
 function addRest(d){ if(W.rest){ W.rest.end=Math.max(Date.now()+5000,W.rest.end+d*1000); W.rest.total+=d; if(d>0) W.rest.warned=false; render() } }
-function startWork(){ unlockAudio(); const e=cur(),sec=e.cardio?e.cardio*60:e.t; W.work={end:Date.now()+sec*1000,total:sec}; gv="workt"; beep(1,660); runT(); render() }
-function endWork(silent){ if(!W||!W.work) return; W.work=null; stopT(); if(!silent) beep(3,990); const e=cur();
+function startWork(){ unlockAudio(); const e=cur(); if(e.run){ W.run={w:runWeek(),segs:runSegs(runWeek()),i:0,t0:Date.now()}; return runSeg() } const sec=e.cardio?e.cardio*60:e.t; W.work={end:Date.now()+sec*1000,total:sec}; gv="workt"; beep(1,660); runT(); render() }
+function runSeg(){ const g=W.run.segs[W.run.i]; W.work={end:Date.now()+g.s*1000,total:g.s}; gv="workt"; beep(g.run?2:1,g.run?990:660); say(segSay(g)); runT(); render() }
+function runStop(){ stopT(); W.work=null; W.run=null; gv="work"; render() }
+function endWork(silent){ if(!W||!W.work) return;
+  if(W.run&&!silent&&W.run.i<W.run.segs.length-1){ W.run.i++; return runSeg() }
+  W.work=null; gv="work"; stopT(); if(!silent) beep(3,990); const e=cur();
+  if(W.run){ const R=W.run; W.run=null; if(!silent) say("¡Carrera terminada! Muy bien"); rec().sets.push({semana:R.w,min:silent?Math.max(1,Math.round((Date.now()-R.t0)/60000)):runMin(R.w)}); saveW(); return nextEx(true) }
   if(e.cardio){ if(!silent) say(`${e.n} terminado`); rec().sets.push({min:e.cardio}); saveW(); return nextEx(true) }
   if(!silent) say("Tiempo. Descansa"); gv="work"; logSet(); }
 function runT(){ stopT(); timer=setInterval(tick,250) }
@@ -1527,7 +1545,7 @@ function gProg(){
     <form class="row" style="margin-top:8px" onsubmit="event.preventDefault();const v=num(pesoNew);if(v>20){putDoc('peso',today(),{ymd:today(),kg:v});pesoNew=''}else toast('Escribe tu peso en kg')">
       <input inputmode="decimal" placeholder="Peso de hoy (kg)" value="${esc(pesoNew)}" oninput="pesoNew=this.value"><button class="btn small">Guardar</button></form>
     <div class="note">Solo se guarda uno por día; si repites hoy, se sustituye.</div></div>`;
-  for(const R of rutina()){ const exs=R.ex.filter(e=>!e.cardio&&!e.nw&&!e.t); if(!exs.length) continue;
+  for(const R of rutina()){ const exs=R.ex.filter(e=>!e.cardio&&!e.run&&!e.nw&&!e.t); if(!exs.length) continue;
     h+=`<div class="card"><div class="head" style="background:${R.col}"><span class="cap">${esc(R.dia)} · ${esc(R.t)}</span></div>`;
     for(const e of exs){ const hs=exHistory(e.n); const first=hs[0], last=hs[hs.length-1];
       h+=`<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div class="row between"><b style="font-size:15px">${esc(e.n)}</b><span class="sub">${last?`${kgTxt(last.kg)} kg${first&&hs.length>1?` · ${last.kg-first.kg>=0?"+":""}${kgTxt(last.kg-first.kg)}`:""}`:"—"}</span></div>${hs.length>1?spark(hs.map(x=>x.kg),C.pool,280,44):""}</div>` }
@@ -1538,8 +1556,8 @@ function gProg(){
 /* --- Editor de rutina --- */
 let rutDay=null;
 function rutEdit(fn){ const d=clone(rutina()); const R=d.find(r=>r.id===rutDay); if(!R) return; fn(R); saveRut(d) }
-function exKind(e){ return e.cardio?"cardio":e.t?"tiempo":e.nw?"sinpeso":"peso" }
-function setKind(i,k){ rutEdit(R=>{ const e=R.ex[i]; delete e.cardio; delete e.t; delete e.nw; delete e.pair;
+function exKind(e){ return e.run?"correr":e.cardio?"cardio":e.t?"tiempo":e.nw?"sinpeso":"peso" }
+function setKind(i,k){ rutEdit(R=>{ const e=R.ex[i]; delete e.run; delete e.cardio; delete e.t; delete e.nw; delete e.pair;
   if(k==="cardio"){ e.cardio=20; delete e.s; delete e.r; delete e.d } else { e.s=e.s||3; e.r=e.r||"12"; e.d=e.d||60; if(k==="tiempo"){ e.t=30; e.nw=true } if(k==="sinpeso") e.nw=true } }) }
 function gRut(){
   const R=rutina().find(r=>r.id===rutDay)||rutina()[0]; rutDay=R.id;
@@ -1553,7 +1571,7 @@ function gRut(){
       <button class="btn small ghost" ${i===R.ex.length-1?"disabled style='opacity:.3'":""} onclick="rutEdit(R=>{const t=R.ex[${i}];R.ex[${i}]=R.ex[${i+1}];R.ex[${i+1}]=t})">↓</button>
       <button class="x" onclick="if(Date.now()-delArm<3000){rutEdit(R=>R.ex.splice(${i},1))}else{delArm=Date.now();toast('Pulsa otra vez para quitarlo')}">✕</button></div>
       <div class="seg" style="margin:8px 0">${[["peso","Con peso"],["sinpeso","Sin peso"],["tiempo","Tiempo"],["cardio","Cardio"]].map(([kk,n])=>`<button class="${k===kk?"on":""}" onclick="setKind(${i},'${kk}')">${n}</button>`).join("")}</div>
-      ${k==="cardio"?`<div class="row between"><span class="sub">Minutos</span><input inputmode="numeric" style="width:90px" value="${e.cardio}" onchange="rutEdit(R=>R.ex[${i}].cardio=Math.max(1,parseInt(this.value)||20))"></div>`:
+      ${k==="correr"?`<div class="sub">Plan de correr de 8 semanas: la semana se elige al empezar el entreno.</div>`:k==="cardio"?`<div class="row between"><span class="sub">Minutos</span><input inputmode="numeric" style="width:90px" value="${e.cardio}" onchange="rutEdit(R=>R.ex[${i}].cardio=Math.max(1,parseInt(this.value)||20))"></div>`:
       `<div class="row" style="gap:8px"><label class="grow"><span class="sub">Series</span><input inputmode="numeric" value="${e.s}" onchange="rutEdit(R=>R.ex[${i}].s=Math.max(1,parseInt(this.value)||3))"></label>
         <label class="grow"><span class="sub">${k==="tiempo"?"Segundos":"Reps"}</span><input value="${esc(k==="tiempo"?e.t:e.r)}" onchange="rutEdit(R=>{${k==="tiempo"?"R.ex["+i+"].t=Math.max(5,parseInt(this.value)||30);R.ex["+i+"].r=this.value+' s'":"R.ex["+i+"].r=this.value"}})"></label>
         <label class="grow"><span class="sub">Descanso (s)</span><input inputmode="numeric" value="${e.d}" onchange="rutEdit(R=>R.ex[${i}].d=Math.max(10,parseInt(this.value)||60))"></label></div>`}</div>` });
@@ -1569,6 +1587,7 @@ function gHome(){
     <div class="row" style="margin:8px 0"><button class="btn small ghost" style="flex:1" onclick="gv='prog';render()">📈 Progreso</button><button class="btn small ghost" style="flex:1" onclick="rutDay=todayId();gv='rut';render()">✏️ Editar rutina</button></div>`;
   if(act) h+=`<div class="card"><b>Tienes un entreno a medias</b><div class="sub">${esc(act.dia)} · ${esc(act.titulo)}</div>
     <div class="row" style="margin-top:12px"><button class="btn small" onclick="resume()">Continuar</button><button class="link mute" onclick="LS.del('gym_actual');render()">Descartar</button></div></div>`;
+  if(S.app.rutina&&!rutina().some(r=>r.id==="sabado")) h+=`<div class="card" style="background:${C.daff};color:#252D45"><b>Hay una rutina nueva</b><div>Más glúteo, escápulas, core sin máquinas y el plan de correr los sábados. Tu historial de pesos se mantiene.</div><div style="margin-top:10px"><button class="btn small" onclick="removeDoc('app','rutina');toast('Rutina nueva cargada ✓')">Cargar rutina nueva</button></div></div>`;
   h+=`<div style="margin:10px 0 14px">${spotBtn(S.app.gym&&S.app.gym.playlist?"Abrir mi playlist del gym":"Abrir Spotify")}</div>`;
   h+=`<div class="grid2">`+rutina().map(r=>`<button class="day" style="background:${r.col};${r.id===t?"outline:3px solid var(--ink);outline-offset:2px":""}" onclick="startDay('${r.id}')"><b>${esc(r.dia)}</b><span>${esc(r.t)}</span></button>`).join("")+`</div>`;
   const hs=sesList();
@@ -1585,8 +1604,16 @@ function stepper(l,k,st){ return `<div class="step"><label>${esc(l)}</label><div
 function navRow(){ return `<div class="row between"><button class="link" ${W.i===0?"disabled style='opacity:.3'":""} onclick="goEx(${W.i-1})">‹ Anterior</button>
   <button class="link" onclick="nextEx(false)">${W.i===W.R.ex.length-1?"Terminar":"Saltar ›"}</button></div>` }
 function gWork(){
-  const e=cur(),r=rec(),last=lastFor(e.n,W.s.id),best=e.nw||e.cardio?null:bestFor(e.n);
+  const e=cur(),r=rec(),last=lastFor(e.n,W.s.id),best=e.nw||e.cardio||e.run?null:bestFor(e.n);
   let h=gHeader()+`<div class="card"><div class="row between"><h2>${esc(e.n)}</h2>${e.pair?`<span class="pill" style="background:${C.fuchsia};color:#fff">Superserie</span>`:""}</div>`;
+  if(e.run){ const w=runWeek(),hist=sesList().flatMap(x=>(x.ej||[]).filter(y=>y.n===e.n&&y.sets.length).map(y=>({f:x.fecha,s:y.sets[0]}))).slice(0,3);
+    return h+`<div class="row between" style="margin-top:8px"><button class="btn small ghost" ${w<=1?"disabled style='opacity:.3'":""} onclick="setRunWeek(${w-1})">‹</button>
+      <div class="center"><div class="cap sub">Semana ${w} de 8</div><div style="font-weight:800;font-size:18px">${esc(runDesc(w))}</div></div>
+      <button class="btn small ghost" ${w>=8?"disabled style='opacity:.3'":""} onclick="setRunWeek(${w+1})">›</button></div>
+      <div class="sub" style="margin-top:8px">5 min andando rápido para calentar, los intervalos y 5 min andando suave al final · ${runMin(w)} min en total. Ritmo en el que puedas hablar. Te aviso por los cascos en cada cambio.</div>
+      ${hist.length?`<div class="note">Últimas: ${hist.map(x=>esc(fmtDay(new Date(x.f),{day:"numeric",month:"short"}))+" · semana "+(x.s.semana||"?")).join(" · ")}</div>`:""}
+      <div style="margin-top:16px"><button class="btn" onclick="startWork()">▶ Empezar semana ${w}</button></div>
+      <div style="margin-top:10px"><button class="btn ghost" onclick="logSet()">Ya lo he hecho</button></div></div>`+navRow() }
   if(e.cardio) return h+`<div class="sub">${e.cardio} min${e.help?" · "+esc(e.help):""}</div><div style="margin-top:16px"><button class="btn" onclick="startWork()">▶ Empezar ${e.cardio} min</button></div>
     <div style="margin-top:10px"><button class="btn ghost" onclick="logSet()">Ya lo he hecho</button></div></div>`+navRow();
   h+=`<div class="sub">${e.s} series × ${esc(e.r)}${e.help?" · "+esc(e.help):""}</div>`;
@@ -1600,19 +1627,27 @@ function gWork(){
   return h+`</div>`+navRow();
 }
 function gRest(){ const left=Math.ceil((W.rest.end-Date.now())/1000),e=cur(),r=rec();
-  const nx=e.cardio?`${e.n} · ${e.cardio} min`:`${e.n} · serie ${r.sets.length+1}/${e.s}${!e.nw&&W.kg?` · ${kgTxt(W.kg)} kg`:""}`;
+  const nx=e.run?`Correr · semana ${runWeek()}`:e.cardio?`${e.n} · ${e.cardio} min`:`${e.n} · serie ${r.sets.length+1}/${e.s}${!e.nw&&W.kg?` · ${kgTxt(W.kg)} kg`:""}`;
   return gHeader()+`<div class="card center"><div class="cap sub">Descanso</div><div class="big" id="cd">${mmss(left)}</div><div class="pbar"><i id="cdbar" style="width:0"></i></div>
     <div class="row" style="justify-content:center;margin-top:14px"><button class="btn ghost small" onclick="addRest(-15)">−15 s</button><button class="btn ghost small" onclick="addRest(15)">+15 s</button></div>
     <div style="margin-top:14px"><button class="btn" style="background:#000;color:#fff" onclick="pocketOn()">🌙 Modo bolsillo</button></div>
     <div style="margin-top:8px"><button class="btn ghost" onclick="endRest(true)">Saltar descanso</button></div></div>
     <div class="tile" style="background:${C.daff}"><div class="cap">A continuación</div><div style="font-weight:700;margin-top:4px">${esc(nx)}</div></div>`; }
-function gWorkT(){ const left=Math.ceil((W.work.end-Date.now())/1000);
+function gWorkT(){ if(!W.work){ gv="work"; return gWork() } const left=Math.ceil((W.work.end-Date.now())/1000);
+  if(W.run){ const g=W.run.segs[W.run.i],nx=W.run.segs[W.run.i+1],nRun=W.run.segs.filter(x=>x.run).length,kRun=W.run.segs.slice(0,W.run.i+1).filter(x=>x.run).length;
+    return gHeader()+`<div class="card center" style="background:${g.run?C.poppy:C.sage};color:#252D45"><div class="cap">Semana ${W.run.w} · ${g.run?`carrera ${kRun} de ${nRun}`:"andando"}</div>
+      <div style="font-size:34px;font-weight:900;margin-top:6px">${g.run?"🏃‍♀️ ":"🚶‍♀️ "}${esc(g.k)}</div><div class="big" id="cd">${mmss(left)}</div><div class="pbar"><i id="cdbar" style="width:0"></i></div>
+      <div style="margin-top:10px;font-weight:700">${nx?`Después: ${esc(nx.k)} ${esc(durTxt(nx.s))}`:"Último tramo 💪"}</div></div>
+      <div style="margin-top:6px"><button class="btn" style="background:#000;color:#fff" onclick="pocketOn()">🌙 Modo bolsillo</button></div>
+      <div style="margin-top:8px"><button class="btn ghost" onclick="endWork(false)">Saltar este tramo</button></div>
+      <div style="margin-top:8px"><button class="btn ghost" onclick="endWork(true)">Terminar ya y guardar</button></div>
+      <div style="margin-top:8px" class="center"><button class="link mute" onclick="runStop()">Cancelar</button></div>` }
   return gHeader()+`<div class="card center"><div class="sub">${esc(cur().n)}</div><div class="big" id="cd">${mmss(left)}</div><div class="pbar"><i id="cdbar" style="width:0"></i></div>
     <div style="margin-top:14px"><button class="btn" onclick="endWork(true)">Terminar ya</button></div>
     <div style="margin-top:8px"><button class="link mute" onclick="stopT();W.work=null;gv='work';render()">Cancelar</button></div></div>`; }
 function gList(){ return `<div class="row between"><h2>${esc(W.R.dia)} · ${esc(W.R.t)}</h2><button class="link" onclick="gv=W.rest?'rest':W.work?'workt':'work';render();if(W.rest||W.work)runT()">Volver</button></div>
   <div class="card list">${W.R.ex.map((e,k)=>{const d=exDone(e,W.s.ej[k]),n=W.s.ej[k].sets.length;
-    return `<div class="it" onclick="goEx(${k})"><span class="grow">${k===W.i?"▸ ":""}${esc(e.n)}</span><span class="pill" style="background:${d?C.pool:"var(--soft)"};color:${d?"#fff":"var(--mute)"}">${d?"✓":(e.cardio?e.cardio+" min":n+"/"+e.s)}</span></div>`}).join("")}</div>`; }
+    return `<div class="it" onclick="goEx(${k})"><span class="grow">${k===W.i?"▸ ":""}${esc(e.n)}</span><span class="pill" style="background:${d?C.pool:"var(--soft)"};color:${d?"#fff":"var(--mute)"}">${d?"✓":(e.run?"correr":e.cardio?e.cardio+" min":n+"/"+e.s)}</span></div>`}).join("")}</div>`; }
 function detBody(s){ return `<div class="card list">${(s.ej||[]).filter(e=>e.sets&&e.sets.length).map(e=>{const def=rutina().flatMap(r=>r.ex).find(x=>x.n===e.n)||{};
   return `<div class="it" style="display:block"><b>${esc(e.n)}</b><div class="chips">${e.sets.map(st=>`<span class="chip">${esc(setTxt(st,def.pair))}</span>`).join("")}</div></div>`}).join("")||'<div class="sub">Sin series apuntadas.</div>'}</div>` }
 function gDone(){ const s=window._done||S.sesiones[detailId]; if(!s){gv="home";return gHome()} let n=0,vol=0;
@@ -1620,7 +1655,11 @@ function gDone(){ const s=window._done||S.sesiones[detailId]; if(!s){gv="home";r
   return `<h1>¡Hecho! 💪</h1><div class="sub">${esc(s.dia)} · ${esc(s.titulo)}</div>
   <div class="tile" style="background:${C.pool};color:#fff"><div class="row between"><span>Duración</span><b>${Math.round((new Date(s.finFecha)-new Date(s.fecha))/60000)} min</b></div>
   <div class="row between"><span>Series</span><b>${n}</b></div><div class="row between"><span>Kilos movidos</span><b>${Math.round(vol).toLocaleString("es-ES")} kg</b></div></div>
-  ${detBody(s)}<button class="btn" onclick="gv='home';render()">Volver</button>`; }
+  ${runFb(s)}${detBody(s)}<button class="btn" onclick="gv='home';render()">Volver</button>`; }
+function runFb(s){ const st=(s.ej||[]).flatMap(e=>e.sets).find(x=>x.semana!=null); if(!st) return ""; const w=st.semana;
+  if(runWeek()!==w) return `<div class="tile" style="background:${C.sage}">Próxima carrera: <b>semana ${runWeek()}</b> · ${esc(runDesc(runWeek()))}</div>`;
+  return `<div class="card"><b>¿Qué tal la semana ${w}?</b><div class="sub">Si has podido hacer todo sin morir, sube. Si te ha costado mucho, repítela.</div>
+    <div class="row" style="margin-top:10px;gap:8px">${w<8?`<button class="btn small ok" style="flex:1" onclick="setRunWeek(${w+1})">Bien · subir a semana ${w+1}</button>`:`<div style="font-weight:700">¡Plan terminado! 🎉</div>`}<button class="btn small ghost" style="flex:1" onclick="setRunWeek(${w});toast('Repites la semana ${w}')">Repetir</button></div></div>` }
 function gHist(){ const hs=sesList(); return `<div class="row between"><h2>Historial</h2><button class="link" onclick="gv='home';render()">Volver</button></div>
   <div class="card list">${hs.length?hs.map(s=>`<div class="it" onclick="detailId='${s.id}';gv='det';render()"><span class="grow">${esc(s.dia)} · ${esc(s.titulo)}</span><span class="sub">${esc(fmtDay(new Date(s.fecha),{weekday:"short",day:"numeric",month:"short"}))}</span></div>`).join(""):'<div class="sub">Aún vacío.</div>'}</div>` }
 function gDet(){ const s=S.sesiones[detailId]; if(!s){gv="hist";return gHist()}
