@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794743826"></script>
-<script src="supabase.js?v=1794743826"></script>
-<script src="standalone.js?v=1794743826"></script>
+<script src="config.js?v=1794744001"></script>
+<script src="supabase.js?v=1794744001"></script>
+<script src="standalone.js?v=1794744001"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -389,6 +389,13 @@ function blockInfo(e){
   if(/^🎓\s*TFG/u.test(e.t)) return {materia:"TFG"};
   return {materia:null};
 }
+function avanzarBlock(id){
+  const e=evById(id); if(!e) return; const all=Object.assign({},bDone()), info=blockInfo(e); if(all[id]) return;
+  const min=Math.round((e.e-e.s)/60000); let fid=null;
+  if(info.materia){ fid=uid(); putDoc("foco",fid,{ymd:ymd(e.s),fecha:new Date().toISOString(),materia:info.materia,min,bloque:id}) }
+  if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){ x.dias=(x.dias||0)+1; x.fecha=null }});
+  all[id]={d:today(),foco:fid,parcial:true}; putDoc("app","bloques",all); contOpen=true;
+  toast(`⏩ Avanzado${info.materia?` · +${min} min`:""}. ¿Cuándo sigues?`); render() }
 function toggleBlock(id){
   const e=evById(id); if(!e) return; const all=Object.assign({},bDone()), info=blockInfo(e);
   if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); if(info.task&&S.tareas[info.task]) putDoc("tareas",info.task,Object.assign({},S.tareas[info.task],{hecho:false,hechoEl:null})); delete all[id]; putDoc("app","bloques",all); return }
@@ -399,9 +406,9 @@ function toggleBlock(id){
   all[id]={d:today(),foco:fid}; putDoc("app","bloques",all);
   toast(info.task?"✓ Tarea hecha":info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho");
 }
-function evRow(e){
+function evRow(e,drag){
   const blk=isBlock(e), dn=blk&&blockDone(e);
-  return `<div class="ev" style="cursor:pointer;align-items:center" onclick="openViewEv('${esc(e.id)}')">${blk?`<button class="chk ${dn?"on":""}" style="width:24px;height:24px;font-size:13px;${dn?`background:${e.col};border-color:transparent`:""}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}<div class="bar" style="background:${e.col};align-self:stretch"></div><div class="time">${e.allDay?"Día":fmtTime(e.s)}</div>
+  return `<div class="ev" style="cursor:pointer;align-items:center" onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')">${drag===true&&mcp?`<span class="dmv" data-id="${esc(e.id)}" style="touch-action:none;cursor:grab;padding:8px 4px;margin:-8px 0;color:var(--mute);font-size:18px;user-select:none;-webkit-user-select:none">⠿</span>`:""}${blk?`<button class="chk ${dn?"on":""}" style="width:24px;height:24px;font-size:13px;${dn?`background:${e.col};border-color:transparent`:""}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}<div class="bar" style="background:${e.col};align-self:stretch"></div><div class="time">${e.allDay?"Día":fmtTime(e.s)}</div>
     <div class="grow"><div style="font-weight:600" class="${dn?"done-t":""}">${esc(e.t)}</div>${e.loc?`<div class="sub">${esc(e.loc)}</div>`:""}</div></div>`;
 }
 function taskEvRows(d){ return Object.entries(S.tareas).filter(([k,t])=>!t.hecho&&t.fecha===ymd(d)).map(([k,t])=>`<div class="ev"><div class="bar" style="background:${catCol(t.cat)}"></div><div class="time">Tarea</div><div class="grow">${esc(t.t)}</div></div>`).join("") }
@@ -423,14 +430,15 @@ function vMes(){
     const tk=Object.values(S.tareas).some(t=>!t.hecho&&t.fecha===k);
     const cols=[...new Set(evs.map(e=>e.col))].slice(0,3); if(tk&&cols.length<3) cols.push(C.fuchsia);
     const sel=k===agSel, isT=k===td;
-    h+=`<button onclick="agSel='${k}';render()" style="padding:6px 0 5px;border-radius:12px;min-height:46px;opacity:${inM?1:.35};background:${sel?"var(--soft)":"transparent"};${isT?`outline:2px solid ${C.pool};outline-offset:-2px`:""}">
+    h+=`<button data-mday="${k}" onclick="agSel='${k}';render()" style="padding:6px 0 5px;border-radius:12px;min-height:46px;opacity:${inM?1:.35};background:${sel?"var(--soft)":"transparent"};${isT?`outline:2px solid ${C.pool};outline-offset:-2px`:""}">
       <div style="font-weight:${isT||sel?800:500};font-size:15px">${d.getDate()}</div>
       <div class="row" style="justify-content:center;gap:2px;margin-top:3px;height:6px">${cols.map(c=>`<span style="width:6px;height:6px;border-radius:50%;background:${c}"></span>`).join("")}</div></button>`; }
   h+=`</div>${r&&r.loading&&!r.events?'<div class="note">Cargando el mes…</div>':""}</div>`;
   const sd=parseYmd(agSel), evs=evsOn(list,sd);
   h+=`<div class="row between"><div class="daylbl" style="margin:8px 0 4px">${agSel===td?"Hoy":esc(fmtDay(sd,{weekday:"long",day:"numeric",month:"long"}))}</div>
     ${mcp?`<button class="btn small" onclick="openNewEv('${agSel}')">+ Anotar</button>`:""}</div>
-    <div class="card" style="margin:6px 0">${evs.map(evRow).join("")+taskEvRows(sd)||'<div class="sub">Nada anotado.</div>'}</div>`;
+    <div class="card" style="margin:6px 0">${evs.map(e=>evRow(e,true)).join("")+taskEvRows(sd)||'<div class="sub">Nada anotado.</div>'}</div>
+    ${evs.length?`<div class="note">Para pasar algo a otro día, arrastra los puntitos ⠿ hasta ese día en el calendario de arriba.</div>`:""}`;
   return h;
 }
 function vAnyo(){
@@ -599,18 +607,33 @@ function tlTap(ev){ if(tab!=="agenda"||tlNoClick()||!ev.target.closest) return; 
 document.addEventListener("click",tlTap);
 function newQ(day,a,dur,kind){ const o=qAdd||{}; qAdd={day,a,dur,t:o.t||"",kind:kind||o.kind||"tarea",cat:o.cat||"Personal"}; render();
   setTimeout(()=>{ const i=document.getElementById("qai"); if(i) i.focus({preventScroll:true}) },60) }
+async function qSaveClase(q,t){ const a=asigs().find(x=>x.id===q.asig); if(!a) return toast("Elige asignatura"); if(!mcp) return toast("Conecta Google Calendar");
+  const tema=(a.temas||[]).find(x=>x.id===q.tema), name=tema?tema.n:t, b=Math.min(1439,q.a+q.dur);
+  q.busy=true; render();
+  try{ await mcp.callTool(CAL,"create_event",{summary:`📚 ${a.code}${name?" · "+name:""}`,startTime:`${q.day}T${mm(q.a)}:00`,endTime:`${q.day}T${mm(b)}:00`,colorId:"9",useDefaultReminders:false});
+    if(tema) setTemas(a.id,T=>{ const x=T.find(y=>y.id===tema.id); if(x) x.fecha=q.day });
+    else if(name) setTemas(a.id,T=>{ if(!T.some(y=>y.n===name)) T.push({id:uid(),n:name,done:false,fecha:q.day}) });
+    qAdd=null; await calChanged(); toast(`📚 ${a.code} a las ${mm(q.a)} ✓`) }
+  catch(e){ q.busy=false; toast("Google no lo aceptó, prueba otra vez") } render() }
+function qClaseBox(q){ const AS=asigs(), a=AS.find(x=>x.id===q.asig)||AS[0]; if(!a) return ""; if(!q.asig) q.asig=a.id;
+  const pend=(a.temas||[]).filter(t=>!t.done);
+  return `<div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${AS.map(x=>`<button class="pill" style="padding:6px 10px;font-weight:700;background:${x.id===a.id?x.col:"var(--soft)"};color:${x.id===a.id?"#252D45":"var(--mute)"}" onclick="qAdd.asig='${x.id}';qAdd.tema=null;render()">${esc(x.code)}</button>`).join("")}</div>
+    ${pend.length?`<div class="sub" style="margin-top:6px">Temas y ejercicios pendientes</div><div class="row" style="gap:4px;flex-wrap:wrap;margin-top:4px;max-height:96px;overflow-y:auto">${pend.map(t=>`<button class="pill" style="padding:6px 10px;background:${q.tema===t.id?C.daff:"var(--soft)"};color:${q.tema===t.id?"#252D45":"var(--ink)"}" onclick="qAdd.tema=qAdd.tema==='${t.id}'?null:'${t.id}';qAdd.t=qAdd.tema?${esc(JSON.stringify(t.n))}:'';render()">${esc(t.n)}${t.dias?` · ${t.dias}d`:""}</button>`).join("")}</div>`:`<div class="sub" style="margin-top:6px">${esc(a.code)} no tiene temas pendientes; escribe arriba qué vas a hacer.</div>`}` }
 function qAddSheet(){ const q=qAdd;
   return `<div style="position:fixed;left:0;right:0;bottom:0;z-index:50;padding:12px 12px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line);box-shadow:0 -8px 30px #0003;border-radius:18px 18px 0 0;max-width:560px;margin:0 auto">
     <div class="row between"><b>Nueva${q.day!==today()?" · "+esc(fmtDay(parseYmd(q.day),{weekday:"short",day:"numeric"})):""} a las ${mm(q.a)}</b><button class="x" onclick="qAdd=null;render()">✕</button></div>
-    <form onsubmit="event.preventDefault();qSave()"><input id="qai" style="margin-top:8px" placeholder="${q.kind==="tarea"?"¿Qué tienes que hacer?":"¿Qué es?"}" value="${esc(q.t)}" oninput="qAdd.t=this.value"></form>
-    <div class="seg" style="margin-top:8px"><button class="${q.kind==="tarea"?"on":""}" onclick="qAdd.kind='tarea';render()">✅ Tarea</button><button class="${q.kind==="evento"?"on":""}" onclick="qAdd.kind='evento';render()">📌 Evento</button></div>
+    <form onsubmit="event.preventDefault();qSave()"><input id="qai" style="margin-top:8px" placeholder="${q.kind==="tarea"?"¿Qué tienes que hacer?":q.kind==="clase"?"Tema o ejercicio (o elige abajo)":"¿Qué es?"}" value="${esc(q.t)}" oninput="qAdd.t=this.value"></form>
+    <div class="seg" style="margin-top:8px"><button class="${q.kind==="tarea"?"on":""}" onclick="qAdd.kind='tarea';render()">✅ Tarea</button><button class="${q.kind==="evento"?"on":""}" onclick="qAdd.kind='evento';render()">📌 Evento</button>${asigs().length?`<button class="${q.kind==="clase"?"on":""}" onclick="qAdd.kind='clase';render()">📚 Clase</button>`:""}</div>
+    ${q.kind==="clase"?qClaseBox(q):""}
     ${q.kind==="tarea"?`<div class="row" style="gap:4px;flex-wrap:wrap;margin-top:6px">${Object.keys(cats()).map(c=>`<button class="pill" style="padding:5px 9px;background:${q.cat===c?catCol(c):"var(--soft)"};color:${q.cat===c?"#252D45":"var(--mute)"}" onclick="qAdd.cat='${esc(c)}';render()">${esc(c)}</button>`).join("")}</div>`:""}
     <div class="row" style="gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap"><span class="sub" style="width:48px">Empieza</span><button class="btn small ghost" onclick="qAdd.a=Math.max(0,qAdd.a-15);render()">−</button><b style="min-width:48px;text-align:center">${mm(q.a)}</b><button class="btn small ghost" onclick="qAdd.a=Math.min(1425,qAdd.a+15);qAdd.dur=Math.min(qAdd.dur,1440-qAdd.a);render()">+</button></div>
     <div class="row" style="gap:6px;margin-top:6px;align-items:center;flex-wrap:wrap"><span class="sub" style="width:48px">Acaba</span><button class="btn small ghost" onclick="qAdd.dur=Math.max(15,qAdd.dur-15);render()">−</button><b style="min-width:48px;text-align:center">${mm(Math.min(1439,q.a+q.dur)).replace("23:59",q.a+q.dur>=1440?"24:00":"23:59")}</b><button class="btn small ghost" onclick="qAdd.dur=Math.min(1440-qAdd.a,qAdd.dur+15);render()">+</button><span class="sub">· ${q.dur%60?(q.dur>=60?Math.floor(q.dur/60)+" h "+q.dur%60+" min":q.dur+" min"):q.dur/60+" h"}</span></div>
     <div class="row" style="gap:4px;margin-top:6px">${[15,30,60,90,120].map(m=>`<button class="pill" style="padding:6px 10px;background:${q.dur===m?C.daff:"var(--soft)"};color:${q.dur===m?"#252D45":"var(--mute)"}" onclick="qAdd.dur=${m};render()">${m<60?m+"′":m/60+" h"}</button>`).join("")}</div>
     <button class="btn ok" style="margin-top:10px" ${qAdd.busy?"disabled":""} onclick="qSave()">${qAdd.busy?"Guardando…":"Guardar"}</button></div>
     <div style="height:330px"></div>` }
-async function qSave(){ const q=qAdd; if(!q||q.busy) return; const t=q.t.trim(); if(!t) return toast("Escribe qué es");
+async function qSave(){ const q=qAdd; if(!q||q.busy) return; const t=q.t.trim();
+  if(q.kind==="clase") return qSaveClase(q,t);
+  if(!t) return toast("Escribe qué es");
   const b=Math.min(1439,q.a+q.dur);
   if(q.kind==="tarea") putDoc("tareas",uid(),{t,fecha:q.day,cat:q.cat,hecho:false,dur:q.dur,creado:new Date().toISOString()});
   if(!mcp){ qAdd=null; render(); return toast(q.kind==="tarea"?"Tarea guardada (conecta Google para verla en la hora)":"Conecta Google Calendar para guardar eventos") }
@@ -675,6 +698,29 @@ document.addEventListener("touchcancel",ev=>{ if(TD) tlEnd() });
 document.addEventListener("touchmove",ev=>{ if(TD&&TD.on) ev.preventDefault() },{passive:false});
 ["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,ev=>{ if(ev.pointerType!=="touch") tlEnd() }));
 document.addEventListener("contextmenu",ev=>{ if(ev.target.closest&&ev.target.closest(".tlb")) ev.preventDefault() });
+
+/* Arrastrar un evento a otro día en la vista Mes */
+let DD=null;
+function ddStart(ev){ if(tab!=="agenda"||!ev.target.closest) return; const h=ev.target.closest(".dmv"); if(!h) return; const e=evById(h.dataset.id); if(!e) return;
+  const g=document.createElement("div"); g.textContent=e.t; g.style.cssText=`position:fixed;z-index:80;pointer-events:none;background:${e.col};color:#252D45;padding:6px 10px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 8px 24px #0004;max-width:60vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis`;
+  document.body.appendChild(g); DD={id:e.id,g,day:null}; ddMove(ev); ev.preventDefault&&ev.preventDefault() }
+function ddMove(ev){ if(!DD) return; ev.preventDefault&&ev.preventDefault(); DD.g.style.left=(ev.clientX+12)+"px"; DD.g.style.top=(ev.clientY-34)+"px";
+  let hit=null; for(const c of document.querySelectorAll("[data-mday]")){ const r=c.getBoundingClientRect(); const on=ev.clientX>=r.left&&ev.clientX<r.right&&ev.clientY>=r.top&&ev.clientY<r.bottom; c.style.boxShadow=on?`inset 0 0 0 2px ${C.poppy}`:""; if(on) hit=c.dataset.mday }
+  DD.day=hit }
+async function ddEnd(){ if(!DD) return; const d=DD; DD=null; d.g.remove(); tlLastDrag=Date.now(); document.querySelectorAll("[data-mday]").forEach(c=>c.style.boxShadow="");
+  const e=evById(d.id); if(!e||!d.day||d.day===ymd(e.s)) return; if(!mcp) return;
+  const shift=Math.round((parseYmd(d.day)-parseYmd(ymd(e.s)))/864e5), ns=addDays(e.s,shift), ne=addDays(e.e,shift);
+  const inp=e.allDay?{eventId:e.id,allDay:true,startTime:ymd(ns)+"T00:00:00",endTime:ymd(ne)+"T00:00:00"}:{eventId:e.id,startTime:`${ymd(ns)}T${hm(ns)}:00`,endTime:`${ymd(ne)}T${hm(ne)}:00`};
+  const olds=[]; const L=[...(cal.events||[])]; for(const k in rng) L.push(...(rng[k].events||[])); for(const x of L) if(x.id===e.id){ olds.push([x,x.s,x.e]); x.s=addDays(x.s,shift); x.e=addDays(x.e,shift) }
+  agSel=d.day; render();
+  try{ await mcp.callTool(CAL,"update_event",inp); toast(`Pasado al ${fmtDay(ns,{weekday:"long",day:"numeric"})} ✓`); await calChanged(); render() }
+  catch(x){ for(const [o,s0,e0] of olds){ o.s=s0; o.e=e0 } render(); toast("Google no dejó moverlo") } }
+document.addEventListener("pointerdown",ev=>{ if(ev.pointerType!=="touch") ddStart(ev) });
+document.addEventListener("pointermove",ev=>{ if(DD&&ev.pointerType!=="touch") ddMove(ev) },{passive:false});
+document.addEventListener("pointerup",ev=>{ if(ev.pointerType!=="touch") ddEnd() });
+document.addEventListener("touchstart",ev=>{ if(ev.touches.length===1&&ev.target.closest&&ev.target.closest(".dmv")) ddStart(tPt(ev)) },{passive:true});
+document.addEventListener("touchmove",ev=>{ if(DD) ddMove(tPt(ev)) },{passive:false});
+document.addEventListener("touchend",()=>{ if(DD) ddEnd() });
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true},S.app.plan||{});
 function savePlan(p){ putDoc("app","plan",Object.assign({},plan(),p)) }
@@ -791,8 +837,8 @@ function vPlan(){
 }
 function openNewEv(d){ newEv={t:"",d:d||today(),hi:"10:00",hf:"11:00",all:false,aviso:false,cat:null,rep:"no"}; go('agenda'); window.scrollTo(0,0) }
 const hm=d=>pad(d.getHours())+":"+pad(d.getMinutes());
-let evView=null, dupOpen=false;
-function openViewEv(id){ if(!evById(id)) return; evView=id; dupOpen=false; render() }
+let evView=null, dupOpen=false, contOpen=false;
+function openViewEv(id){ if(!evById(id)) return; evView=id; dupOpen=false; contOpen=false; render() }
 function dupEvId(id,dest){ openEditEv(id); evView=null; dupOpen=false; dupEv(dest) }
 function evViewSheet(){ const e=evById(evView); if(!e){ evView=null; return "" }
   const blk=isBlock(e), dn=blk&&blockDone(e), c=EVCATS.find(x=>x.k===e.cat), endI=e.allDay?addDays(e.e,-1):e.e, same=ymd(e.s)===ymd(endI);
@@ -808,7 +854,10 @@ function evViewSheet(){ const e=evById(evView); if(!e){ evView=null; return "" }
     <div style="margin:12px 0 0 22px;line-height:1.5">${when}${e.rec?`<div class="sub">🔁 Se repite</div>`:""}${e.aviso?`<div class="sub">🔔 Con aviso</div>`:""}</div>
     ${e.loc?`<div style="margin:10px 0 0 22px">📍 <a href="https://maps.apple.com/?q=${encodeURIComponent(e.loc)}" target="_blank" rel="noopener">${esc(e.loc)}</a></div>`:""}
     ${desc.trim()?`<div style="margin:12px 0 0 22px;padding:10px 12px;background:var(--soft);border-radius:12px;white-space:normal;word-break:break-word">${links(desc.trim())}</div>`:""}
-    ${blk?`<div class="row" style="gap:8px;margin-top:14px"><button class="btn small ${dn?"ghost":"ok"}" style="flex:1" onclick="toggleBlock('${esc(e.id)}');render()">${dn?"Desmarcar":"✓ Hecho"}</button>${dn?"":`<button class="btn small ghost" style="flex:1" onclick="evView=null;focoBlock('${esc(e.id)}')">▶ Empezar</button>`}</div>`:""}
+    ${blk&&!/^💪/u.test(e.t)&&(!dn||contOpen)?(()=>{ const pr=dn&&(bDone()[e.id]||{}).parcial; return pr||contOpen?`<div style="margin-top:12px;padding:12px;background:var(--soft);border-radius:12px"><b>⏩ ¿Cuándo sigues?</b><div class="sub">Pongo otro bloque igual ese día.</div>
+      <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn small ghost" onclick="contOpen=false;dupEvId('${esc(e.id)}',ymd(addDays(evById('${esc(e.id)}').s,1)))">Mañana</button><button class="btn small ghost" onclick="contOpen=false;dupEvId('${esc(e.id)}',ymd(addDays(evById('${esc(e.id)}').s,2)))">Pasado</button><button class="btn small ghost" onclick="contOpen=false;render()">Ya lo pongo yo</button></div>
+      <div class="row" style="gap:6px;margin-top:8px;align-items:center"><input type="date" id="contd" value="${ymd(addDays(e.s,1))}" style="flex:1"><button class="btn small" onclick="contOpen=false;dupEvId('${esc(e.id)}',document.getElementById('contd').value)">Ahí</button></div></div>`:`<button class="btn small ghost" style="width:100%;margin-top:12px" onclick="avanzarBlock('${esc(e.id)}')">⏩ He avanzado, pero sigo otro día</button>` })():""}
+    ${blk?`<div class="row" style="gap:8px;margin-top:10px"><button class="btn small ${dn?"ghost":"ok"}" style="flex:1" onclick="contOpen=false;toggleBlock('${esc(e.id)}');render()">${dn?"Desmarcar":"✓ Terminado"}</button>${dn?"":`<button class="btn small ghost" style="flex:1" onclick="evView=null;focoBlock('${esc(e.id)}')">▶ Empezar</button>`}</div>`:""}
     ${dupOpen?`<div style="margin-top:12px;padding:12px;background:var(--soft);border-radius:12px"><b>¿Dónde pongo la copia?</b>
       <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn small ghost" onclick="dupEvId('${esc(e.id)}',ymd(evById('${esc(e.id)}').s))">Mismo día</button><button class="btn small ghost" onclick="dupEvId('${esc(e.id)}',ymd(addDays(evById('${esc(e.id)}').s,1)))">Día siguiente</button><button class="btn small ghost" onclick="dupEvId('${esc(e.id)}',ymd(addDays(evById('${esc(e.id)}').s,7)))">+1 semana</button></div>
       <div class="row" style="gap:6px;margin-top:8px;align-items:center"><input type="date" id="dupd" value="${ymd(e.s)}" style="flex:1"><button class="btn small" onclick="dupEvId('${esc(e.id)}',document.getElementById('dupd').value)">Ahí</button></div></div>`:""}
@@ -1413,7 +1462,7 @@ function temasHoy(){ const out=[]; for(const a of asigs()) for(const t of (a.tem
 function temasBox(a){
   const ts=a.temas||[], pend=ts.filter(t=>!t.done), done=ts.filter(t=>t.done);
   const row=t=>`<div class="it"><button class="chk ${t.done?"on":""}" style="${t.done?`background:${a.col}`:""}" onclick="setTemas('${a.id}',T=>{const x=T.find(y=>y.id==='${t.id}');x.done=!x.done;x.doneEl=x.done?today():null})">${t.done?"✓":""}</button>
-    <div class="grow ${t.done?"done-t":""}">${esc(t.n)}${t.fecha&&!t.done?`<div class="sub" style="font-size:12px;${t.fecha<today()?`color:${C.poppy}`:t.fecha===today()?`color:${C.pool};font-weight:700`:""}">📅 ${t.fecha===today()?"Hoy":esc(fmtDay(parseYmd(t.fecha),{weekday:"short",day:"numeric",month:"short"}))}${t.hora?" · "+t.hora:""}</div>`:""}</div>
+    <div class="grow ${t.done?"done-t":""}">${esc(t.n)}${t.dias&&!t.done?` <span class="sub" style="font-size:12px">· ${t.dias} ${t.dias===1?"día":"días"} trabajado${t.dias===1?"":"s"}</span>`:""}${t.fecha&&!t.done?`<div class="sub" style="font-size:12px;${t.fecha<today()?`color:${C.poppy}`:t.fecha===today()?`color:${C.pool};font-weight:700`:""}">📅 ${t.fecha===today()?"Hoy":esc(fmtDay(parseYmd(t.fecha),{weekday:"short",day:"numeric",month:"short"}))}${t.hora?" · "+t.hora:""}</div>`:""}</div>
     ${t.done?"":`<button class="btn small ghost" style="padding:5px 9px" onclick="openTemaPlan('${a.id}','${t.id}')" title="Elegir día">📅</button><button class="btn small ghost" style="padding:5px 9px" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');if(i>0){const z=T[i];T.splice(i,1);T.unshift(z)}})" title="Hacer primero">⤒</button>`}
     <button class="x" onclick="setTemas('${a.id}',T=>{const i=T.findIndex(y=>y.id==='${t.id}');T.splice(i,1)})">✕</button></div>${tp&&tp.aid===a.id&&tp.tid===t.id?temaPlanForm(a,t):""}`;
   return `<div style="margin-top:8px" class="row between"><b>Temas y ejercicios</b><span class="sub">${done.length}/${ts.length}</span></div>
