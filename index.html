@@ -115,9 +115,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794700901"></script>
-<script src="supabase.js?v=1794700901"></script>
-<script src="standalone.js?v=1794700901"></script>
+<script src="config.js?v=1794701233"></script>
+<script src="supabase.js?v=1794701233"></script>
+<script src="standalone.js?v=1794701233"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -372,11 +372,12 @@ function calErrBox(){
   return `<div class="sub">${cal.events?"Puede que no esté actualizado: ":""}no he podido cargar el calendario ahora mismo.</div>`;
 }
 /* Bloques de estudio/TFG/gym: se marcan como hechos, tachan el tema y suman minutos de foco */
-const BLK=/^(📚|🎓\s*TFG|💪\s*Gym)/u;
+const BLK=/^(📚|🎓\s*TFG|💪\s*Gym|✅)/u;
 const isBlock=e=>!e.allDay&&BLK.test(e.t);
 const bDone=()=>S.app.bloques||{};
 const blockDone=e=>!!bDone()[e.id];
 function blockInfo(e){
+  const tm=e.t.match(/^✅\s*(.+)$/u); if(tm){ const tk=Object.entries(S.tareas).find(([k,x])=>x.t.trim()===tm[1].trim()); return {materia:null,task:tk?tk[0]:null} }
   const m=e.t.match(/^📚\s*(\S+)\s*(?:·\s*(.+))?$/u);
   if(m){ const code=m[1]==="Estudiar"?(e.t.split(/\s+/).pop()):m[1]; const a=asigs().find(x=>x.code===code); const tema=a&&m[2]?(a.temas||[]).find(t=>t.n===m[2].trim()):null; return {materia:code,a,tema} }
   if(/^🎓\s*TFG/u.test(e.t)) return {materia:"TFG"};
@@ -384,12 +385,13 @@ function blockInfo(e){
 }
 function toggleBlock(id){
   const e=evById(id); if(!e) return; const all=Object.assign({},bDone()), info=blockInfo(e);
-  if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); delete all[id]; putDoc("app","bloques",all); return }
+  if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); if(info.task&&S.tareas[info.task]) putDoc("tareas",info.task,Object.assign({},S.tareas[info.task],{hecho:false,hechoEl:null})); delete all[id]; putDoc("app","bloques",all); return }
   const min=Math.round((e.e-e.s)/60000); let fid=null;
   if(info.materia){ fid=uid(); putDoc("foco",fid,{ymd:ymd(e.s),fecha:new Date().toISOString(),materia:info.materia,min,bloque:id}) }
   if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=true;x.doneEl=today()}});
+  if(info.task&&S.tareas[info.task]) putDoc("tareas",info.task,Object.assign({},S.tareas[info.task],{hecho:true,hechoEl:today()}));
   all[id]={d:today(),foco:fid}; putDoc("app","bloques",all);
-  toast(info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho");
+  toast(info.task?"✓ Tarea hecha":info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho");
 }
 function evRow(e){
   const blk=isBlock(e), dn=blk&&blockDone(e);
@@ -452,11 +454,84 @@ function vLista(){
 }
 function vAgenda(){
   let h=`<div class="row between"><h1>Agenda</h1>${mcp?`<button class="btn small" onclick="openNewEv(agView==='mes'?agSel:today())">+ Anotar</button>`:""}</div>
-    <div class="seg">${[["lista","Semana"],["mes","Mes"],["anyo","Año"],["plan","Planificar"]].map(([k,n])=>`<button class="${agView===k?"on":""}" onclick="setAg('${k}')">${n}</button>`).join("")}</div>`;
+    <div class="seg">${[["dia","Día"],["lista","Semana"],["mes","Mes"],["anyo","Año"],["plan","Planificar"]].map(([k,n])=>`<button class="${agView===k?"on":""}" onclick="setAg('${k}')">${n}</button>`).join("")}</div>`;
   if(newEv) h+=newEvForm();
   if(cal.err||cal.events===null) h+=`<div class="card">${cal.err?calErrBox():'<div class="sub">Cargando tu calendario…</div>'}</div>`;
-  h+= agView==="mes"?vMes():agView==="anyo"?vAnyo():agView==="plan"?vPlan():vLista();
-  if(cal.stamp&&agView!=="anyo") h+=`<div class="note">Toca algo para cambiarlo o borrarlo.</div>`;
+  h+= agView==="dia"?vDia():agView==="mes"?vMes():agView==="anyo"?vAnyo():agView==="plan"?vPlan():vLista();
+  if(cal.stamp&&agView!=="anyo") h+=agView==="dia"?"":`<div class="note">Toca algo para cambiarlo o borrarlo.</div>`;
+  return h;
+}
+
+/* --- DÍA: línea de horas y "Organizar mi día" con las tareas pendientes --- */
+let agDia=today(), dprop=null, dBusy=false;
+const diaCfg=()=>Object.assign({ini:540,fin:1260,gap:10},S.app.dia||{});
+function setDiaCfg(o){ putDoc("app","dia",Object.assign({},diaCfg(),o)); dprop=null }
+const t2m=v=>{ const [h,m]=(v||"0:0").split(":").map(Number); return h*60+(m||0) };
+function moveDia(n){ agDia=ymd(addDays(parseYmd(agDia),n)); dprop=null; render() }
+const tDur=t=>t.dur||60;
+function setDur(id,m){ const t=S.tareas[id]; if(t) putDoc("tareas",id,Object.assign({},t,{dur:m})); dprop=null }
+function diaCands(day){ const wk=ymd(addDays(parseYmd(day),7));
+  const rk=t=>!t.fecha?2:t.fecha<day?0:t.fecha===day?1:3;
+  return Object.entries(S.tareas).filter(([k,t])=>!t.hecho&&(!t.fecha||t.fecha<=wk)).sort((a,b)=>rk(a[1])-rk(b[1])||(a[1].fecha||"").localeCompare(b[1].fecha||"")) }
+const diaOn=(t,day)=>t.diaSkip!==day&&(t.diaPick===day||!t.fecha||t.fecha<=day);
+function pickTask(id){ const t=S.tareas[id]; if(!t) return; const on=diaOn(t,agDia); putDoc("tareas",id,Object.assign({},t,on?{diaSkip:agDia,diaPick:null}:{diaPick:agDia,diaSkip:null})); dprop=null }
+function diaBusy(day){ const d=parseYmd(day); return busyOn(d,allEvents()).concat([]) }
+function organizar(){
+  const day=agDia, cf=diaCfg(), d=parseYmd(day); let start=cf.ini;
+  if(day===today()){ const n=new Date(); start=Math.max(start,Math.ceil((n.getHours()*60+n.getMinutes()+5)/15)*15) }
+  let free=freeSlots(d,diaBusy(day),[[start,cf.fin]]).map(x=>[x[0],x[1]]);
+  const items=[], noFit=[];
+  for(const [k,t] of diaCands(day).filter(([k,t])=>diaOn(t,day))){ const dur=tDur(t), sl=free.find(([a,b])=>b-a>=dur);
+    if(!sl){ noFit.push(t.t); continue } items.push({id:uid(),tid:k,t:t.t,cat:t.cat,a:sl[0],b:sl[0]+dur}); sl[0]+=dur+cf.gap }
+  items.sort((x,y)=>x.a-y.a); dprop={day,items,noFit}; render();
+  if(!items.length) toast(noFit.length?"Hoy no queda hueco para esas tareas":"No hay tareas marcadas para hoy");
+}
+async function guardarDia(){
+  if(!dprop||dBusy||!mcp) return; dBusy=true; render(); let ok=0;
+  for(const it of [...dprop.items]){
+    try{ await mcp.callTool(CAL,"create_event",{summary:"✅ "+it.t,startTime:`${dprop.day}T${mm(it.a)}:00`,endTime:`${dprop.day}T${mm(it.b)}:00`,colorId:"8",useDefaultReminders:false}); ok++;
+      const t=S.tareas[it.tid]; if(t&&!t.fecha) putDoc("tareas",it.tid,Object.assign({},t,{fecha:dprop.day}));
+      dprop.items=dprop.items.filter(x=>x.id!==it.id); render() }
+    catch(e){ toast(`Paré en "${it.t}": revisa la agenda antes de repetir`); break } }
+  dBusy=false; await calChanged(); if(ok) toast(`${ok} tareas puestas en tu día ✓`); if(dprop&&!dprop.items.length) dprop=null; render();
+}
+function vDia(){
+  const day=agDia, d=parseYmd(day), td=today(), cf=diaCfg(); loadRange("d"+day,d,addDays(d,1));
+  const evs=evsOn(allEvents(),d), allD=evs.filter(e=>e.allDay), timed=evs.filter(e=>!e.allDay);
+  const H0=Math.floor(Math.min(cf.ini,...timed.map(e=>ymd(e.s)===day?toMin(e.s):0).filter(x=>x>0),cf.ini)/60), H1=Math.ceil(Math.max(cf.fin,...timed.map(e=>ymd(e.e)===day?toMin(e.e):0))/60);
+  const PX=1.1, top=m=>(m-H0*60)*PX;
+  let h=`<div class="row between" style="margin:6px 0"><button class="btn small ghost" onclick="moveDia(-1)">‹</button>
+    <div class="center"><b style="font-size:18px">${day===td?"Hoy":esc(fmtDay(d,{weekday:"long"}))}</b><div class="sub">${esc(fmtDay(d,{day:"numeric",month:"long"}))}</div></div>
+    <button class="btn small ghost" onclick="moveDia(1)">›</button></div>
+    ${day!==td?`<div class="center"><button class="link" onclick="agDia=today();dprop=null;render()">Ir a hoy</button></div>`:""}`;
+  if(allD.length) h+=`<div class="card" style="padding:8px 12px">${allD.map(evRow).join("")}</div>`;
+  let tl=`<div style="position:relative;height:${(H1-H0)*60*PX}px;margin-left:44px">`;
+  for(let hh=H0;hh<=H1;hh++) tl+=`<div style="position:absolute;top:${top(hh*60)}px;left:-44px;right:0;border-top:1px solid var(--line)"><span class="sub" style="position:absolute;top:-9px;left:0;font-size:11px;background:var(--card);padding-right:4px">${pad(hh)}:00</span></div>`;
+  tl+=`<div style="position:absolute;top:${top(cf.ini)}px;height:${(cf.fin-cf.ini)*PX}px;left:0;right:0;background:var(--soft);opacity:.45;border-radius:10px"></div>`;
+  if(day===td){ const nm=toMin(new Date()); if(nm>=H0*60&&nm<=H1*60) tl+=`<div style="position:absolute;top:${top(nm)}px;left:-6px;right:0;border-top:2px solid ${C.poppy};z-index:3"></div>` }
+  for(const e of timed){ const a=ymd(e.s)===day?toMin(e.s):0, b=ymd(e.e)===day?toMin(e.e):1440, blk=isBlock(e), dn=blk&&blockDone(e);
+    tl+=`<div onclick="openEditEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;left:0;right:0;background:${e.col};color:#252D45;border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
+      ${blk?`<button class="chk ${dn?"on":""}" style="width:20px;height:20px;font-size:11px;border-color:#252D45;background:${dn?"#fff8":"transparent"}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}
+      <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div></div>` }
+  if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div onclick="dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;left:0;right:0;border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
+      <b>✅ ${esc(it.t)}</b> <span class="sub">${mm(it.a)}–${mm(it.b)} · toca para quitar</span></div>`;
+  h+=`<div class="card" style="padding:14px 12px">${tl}</div></div>`;
+  if(dprop&&dprop.day===day){
+    h+=`<div class="card" style="border:2px solid ${C.pool}"><b>Propuesta para ${day===td?"hoy":esc(fmtDay(d,{weekday:"long"}))}</b>
+      <div class="sub">${dprop.items.length?`${dprop.items.length} tareas colocadas en tus huecos libres (las de línea discontinua).`:"No he podido colocar nada."}${dprop.noFit.length?` No caben: ${esc(dprop.noFit.join(", "))}.`:""}</div>
+      <div class="row" style="margin-top:10px;gap:8px">${mcp&&dprop.items.length?`<button class="btn small ok" style="flex:1" ${dBusy?"disabled":""} onclick="guardarDia()">${dBusy?"Guardando…":"💾 Guardar en mi día"}</button>`:""}
+      <button class="btn small ghost" onclick="organizar()">↻ Rehacer</button><button class="link mute" onclick="dprop=null;render()">Descartar</button></div>
+      ${!mcp?`<div class="note">Conecta Google Calendar para guardarlo.</div>`:""}</div>` }
+  const cs=diaCands(day);
+  h+=`<div class="card"><div class="head" style="${hs('h:Organizar mi día','daff')}"><span class="cap">¿Qué quieres hacer ${day===td?"hoy":"este día"}?</span></div>
+    ${cs.length?`<div class="list">${cs.map(([k,t])=>{ const on=diaOn(t,day), od=t.fecha&&t.fecha<day;
+      return `<div class="it" style="display:block"><div class="row"><button class="chk ${on?"on":""}" style="${on?`background:${C.pool};border-color:transparent;color:#fff`:""}" onclick="pickTask('${k}')">${on?"✓":""}</button>
+        <div class="grow"><div>${esc(t.t)}</div><div class="row" style="margin-top:2px"><span class="pill" style="background:${catCol(t.cat)}">${esc(t.cat)}</span>${t.fecha?`<span class="sub" style="${od?`color:${C.poppy};font-weight:700`:""}">${od?"Vencida":t.fecha===day?"Para este día":esc(fmtDay(parseYmd(t.fecha),{day:"numeric",month:"short"}))}</span>`:`<span class="sub">Sin fecha</span>`}</div></div></div>
+        ${on?`<div class="row" style="gap:4px;margin:6px 0 0 38px">${[15,30,60,90,120].map(m=>`<button class="pill" style="padding:5px 9px;background:${tDur(t)===m?C.daff:"var(--soft)"};color:${tDur(t)===m?"#252D45":"var(--mute)"}" onclick="setDur('${k}',${m})">${m<60?m+"′":m/60+" h"}</button>`).join("")}</div>`:""}</div>` }).join("")}</div>`
+    :`<div class="sub">No tienes tareas pendientes. Añádelas en Más → Tareas.</div>`}
+    <div class="row" style="margin-top:10px;gap:8px;align-items:center"><span class="sub">Disponible de</span><input type="time" style="width:auto" value="${mm(cf.ini)}" onchange="setDiaCfg({ini:t2m(this.value)})"><span class="sub">a</span><input type="time" style="width:auto" value="${mm(cf.fin)}" onchange="setDiaCfg({fin:t2m(this.value)})"></div>
+    <div style="margin-top:12px"><button class="btn" onclick="organizar()">✨ Organizar mi día</button></div>
+    <div class="note">Marca las tareas y cuánto te llevan. Las coloco en tus huecos libres (con ${cf.gap} min de respiro entre una y otra), sin tocar lo que ya tienes. Luego marcas ✓ en la agenda y la tarea queda hecha.</div></div>`;
   return h;
 }
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
@@ -1343,7 +1418,7 @@ function saveHoy(p){ putDoc("app","hoy",Object.assign({},hoyCfg(),p)) }
 let hoyEdit=false;
 function hoyCard(k,d){
   const td=today();
-  if(k==="cal"){ let h=`<div class="card"><div class="head" style="${hs('h:Hoy en tu calendario','sky')}"><span class="cap">Hoy en tu calendario</span><button class="link" style="color:#252D45" onclick="go('agenda')">Agenda</button></div>`;
+  if(k==="cal"){ let h=`<div class="card"><div class="head" style="${hs('h:Hoy en tu calendario','sky')}"><span class="cap">Hoy en tu calendario</span><span class="row" style="gap:12px"><button class="link" style="color:#252D45" onclick="agDia=today();dprop=null;agView='dia';LS.set('ag_view','dia');go('agenda')">✨ Organizar</button><button class="link" style="color:#252D45" onclick="go('agenda')">Agenda</button></span></div>`;
     if(cal.events===null) h+=cal.err?calErrBox():`<div class="sub">Cargando…</div>`;
     else{ const ev=eventsOn(d).filter(e=>e.allDay||e.e>new Date()||(isBlock(e)&&!blockDone(e))); h+=ev.length?ev.map(evRow).join(""):`<div class="sub">Nada más por hoy.</div>`; }
     return h+`</div>` }
