@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794746011"></script>
-<script src="supabase.js?v=1794746011"></script>
-<script src="standalone.js?v=1794746011"></script>
+<script src="config.js?v=1794746089"></script>
+<script src="supabase.js?v=1794746089"></script>
+<script src="standalone.js?v=1794746089"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -769,7 +769,13 @@ async function genPlan(){
   const cap=c=>P.maxDia*60-c.est;
   // gym (con ida y vuelta)
   for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][dow]);
-    if(R&&(R.id==="martes"||R.id==="domingo")) continue; R&&R.id==="sabado"?add(c,50,"🏃‍♀️ Correr · semana "+runWeek(),"deporte",true,P.viaje):add(c,105,`💪 Gym · ${R?R.t:"entreno"}`,"deporte",P.manana,P.viaje) }
+    if(R&&(R.id==="martes"||R.id==="domingo")) continue; const run=R&&R.id==="sabado", dur=run?50:105, tit=run?"🏃‍♀️ Correr · semana "+runWeek():`💪 Gym · ${R?R.t:"entreno"}`;
+    const hr=(P.gymHora||{})[dow]; const V=P.viaje||0;
+    if(typeof hr==="number"){ const fr=c.free.find(([x,y])=>x<=hr-V&&y>=hr+dur+V)||c.free.find(([x,y])=>y-Math.max(x,hr-V)>=dur+2*V&&y>hr);
+      if(fr){ const A=Math.max(fr[0]+V,hr); out.push({id:uid(),d:c.k,a:A,b:A+dur,t:tit,cat:"deporte"}); c.n++; const s0=A-V,e0=A+dur+V; c.free=c.free.flatMap(([x,y])=>e0<=x||s0>=y?[[x,y]]:[[x,s0],[e0,y]].filter(([p,q])=>q-p>=30)) }
+      else{ // libre fuera de tu horario de estudio: lo pongo igual a esa hora
+        out.push({id:uid(),d:c.k,a:hr,b:hr+dur,t:tit,cat:"deporte"}) } }
+    else add(c,dur,tit,"deporte",hr==="t"?false:hr==="m"?true:P.manana,V) }
   // vida social: el día y la hora que tú dices
   const SO=pSocial();
   for(const c of ctx){ const so=SO[c.d.getDay()]; if(!so) continue; const per=Math.round(so.h*60);
@@ -790,9 +796,9 @@ async function genPlan(){
     if(rem>=30) leftT+=Math.ceil(rem/60) }
   // entregas y tareas: horas totales repartidas antes de la fecha, máximo al día, no hace falta que sean seguidas
   for(const it of trabItems().filter(x=>TR[x.id])){ let rem=Math.round(TR[it.id].h*60); const perDay=Math.round(TR[it.id].dia*60);
-    const okDays=ctx.filter(c=>!it.d||c.k<it.d);
+    const pd=TR[it.id].pref||[]; const okDays=ctx.filter(c=>(!it.d||c.k<it.d)&&(!pd.length||pd.includes(c.d.getDay())));
     for(const c of okDays){ if(rem<=0) break; let today=Math.min(perDay,rem,cap(c));
-      while(today>=30){ const fr=c.free.filter(([x,y])=>y-x>=30).sort((p,q)=>p[0]-q[0])[0]; if(!fr) break; const ch=Math.min(today,fr[1]-fr[0]);
+      while(today>=30){ const fr=c.free.map(f=>{ f[0]=Math.ceil(f[0]/15)*15; return f }).filter(([x,y])=>y-x>=30).sort((p,q)=>p[0]-q[0])[0]; if(!fr) break; const ch=Math.floor(Math.min(today,fr[1]-fr[0])/15)*15;
         out.push({id:uid(),d:c.k,a:fr[0],b:fr[0]+ch,t:it.title,cat:it.ic==="📝"?"entrega":it.ic==="📖"?"clase":"nota"}); fr[0]+=ch+15; c.est+=ch; c.n++; rem-=ch; today-=ch } }
     if(rem>0) leftT+=Math.ceil(rem/60) }
   const queue=[];
@@ -869,6 +875,7 @@ function planTrabCard(){ const all=trabItems(), TR=pTrab(), codes=asigs().map(a=
         <div class="grow"><div>${x.ic} ${esc(x.t)}</div><div class="sub" style="font-size:12px">${x.tema?"Tema / ejercicio":x.ic==="📝"?"Entrega":"Tarea"}${n!=null?` · <b style="${n<=3?`color:${C.poppy}`:""}">${esc(dTxt(n))}</b>`:" · sin fecha"}${x.tema&&x.d?" (examen)":""}${(S.app.entdias||{})[x.id]||x.dias?` · ⏩ ${(S.app.entdias||{})[x.id]||x.dias} días trabajados`:""}</div></div></div>
         ${on?`<div class="row between" style="margin:8px 0 0 38px;flex-wrap:wrap;gap:6px"><span class="sub">Horas en total</span>${hSel(c.h,`setTrab('${esc(x.id)}',{h:+this.value})`,0.5,60)}</div>
           <div class="row between" style="margin:6px 0 0 38px;flex-wrap:wrap;gap:6px"><span class="sub">Máx. al día</span>${hSel(c.dia,`setTrab('${esc(x.id)}',{dia:+this.value})`,0.5,12)}</div>
+          <div style="margin:8px 0 0 38px"><span class="sub">Días que prefieres ${(c.pref||[]).length?"":"(si no eliges, cualquiera)"}</span><div class="row" style="gap:4px;margin-top:4px">${[[1,"L"],[2,"M"],[3,"X"],[4,"J"],[5,"V"],[6,"S"],[0,"D"]].map(([d,n])=>{ const on=(c.pref||[]).includes(d); return `<button class="pill" style="width:32px;height:32px;padding:0;background:${on?C.peach:"var(--soft)"};color:${on?"#252D45":"var(--mute)"}" onclick="setTrab('${esc(x.id)}',{pref:${on?`(pTrab()['${esc(x.id)}'].pref||[]).filter(z=>z!==${d})`:`[...(pTrab()['${esc(x.id)}'].pref||[]),${d}]`}})">${n}</button>` }).join("")}</div></div>
           ${x.d&&x.d<=ymd(planRange()[0])?`<div class="sub" style="margin:6px 0 0 38px;color:${C.poppy};font-size:12px">Su fecha es antes de la semana que planificas; elige "Lo que queda de esta semana" o cambia la fecha.</div>`:""}</div>`:""}</div>` }).join("")}</div>`
     :`<div class="sub" style="margin-top:6px">No tienes entregas ni tareas pendientes.</div>`}</div>` }
 function planVidaCard(){ const P=plan(), sp=(k,v)=>`savePlan({${k}:${v}});prop=null`;
@@ -892,7 +899,9 @@ function vPlan(){
     <div><b>🎓 TFG</b> <span class="sub">· qué días</span></div>${dch(P.tfgDias,"tfgDias",C.cotton)}
     ${P.tfgDias.length?`<div class="row between" style="margin-top:10px"><span>Horas cada día</span>${hSel(P.tfgHdia,"savePlan({tfgHdia:+this.value});prop=null",0.5,10)}</div>${fr(P.tfgFr,"tfgFr")}`:""}
     <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><b>💪 Gym</b> <span class="sub">· qué días</span></div>${dch(P.gymDias,"gymDias",C.lav)}
-    <div class="row between" style="margin-top:10px"><span>Gym por la mañana</span><button class="sw ${P.manana?"on":""}" onclick="savePlan({manana:!plan().manana})"></button></div></div>
+    ${[[1,"Lunes"],[2,"Martes"],[3,"Miércoles"],[4,"Jueves"],[5,"Viernes"],[6,"Sábado"],[0,"Domingo"]].filter(([d])=>P.gymDias.includes(d)).map(([d,n])=>{ const v=(P.gymHora||{})[d]??(P.manana?"m":"t");
+      return `<div class="row between" style="padding:8px 0 0;gap:6px"><span>${n}${d===2?' <span class="sub">(Body Pump)</span>':d===6?' <span class="sub">(correr)</span>':""}</span><select style="width:auto;padding:6px 8px" onchange="const v=this.value;savePlan({gymHora:Object.assign({},plan().gymHora,{${d}:v==='m'||v==='t'?v:+v})});prop=null">
+        <option value="m" ${v==="m"?"selected":""}>Por la mañana</option><option value="t" ${v==="t"?"selected":""}>Por la tarde</option>${Array.from({length:65},(_,i)=>360+i*15).map(m=>`<option value="${m}" ${v===m?"selected":""}>A las ${mm(m)}</option>`).join("")}</select></div>` }).join("")}</div>
     ${planTrabCard()}${planVidaCard()}<div class="card">
     <div class="seg">${[["esta","Lo que queda de esta semana"],["proxima","La semana que viene"]].map(([k,n])=>`<button class="${P.semana===k?"on":""}" onclick="savePlan({semana:'${k}'});prop=null">${n}</button>`).join("")}</div>
     <div class="note">Respeto tus clases, comidas, el tiempo de ir y volver, tu máximo de estudio al día y tu vida social. Las clases "opcionales" cuentan como libres. El martes ya tienes Body Pump.</div>
