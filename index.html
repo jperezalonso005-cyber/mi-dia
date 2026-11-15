@@ -123,9 +123,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794746913"></script>
-<script src="supabase.js?v=1794746913"></script>
-<script src="standalone.js?v=1794746913"></script>
+<script src="config.js?v=1794747771"></script>
+<script src="supabase.js?v=1794747771"></script>
+<script src="standalone.js?v=1794747771"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -285,11 +285,29 @@ const typing=()=>{const a=document.activeElement;return a&&["INPUT","TEXTAREA","
 function schedule(){ if(typing()){pending=true;return} render() }
 try{ matchMedia("(prefers-color-scheme: dark)").addEventListener("change",()=>{ _temaSig=""; render() }) }catch(e){}
 document.addEventListener("focusout",()=>setTimeout(()=>{ if(pending&&!typing()){pending=false;render()} },60));
-function toast(m){ toastMsg=m; render(); clearTimeout(toastT); toastT=setTimeout(()=>{toastMsg="";render()},2800) }
+let toastUndo=null;
+function toast(m,undo){ toastMsg=m; toastUndo=typeof undo==="function"?undo:null; render(); clearTimeout(toastT); toastT=setTimeout(()=>{toastMsg="";toastUndo=null;render()},toastUndo?6000:2800) }
+async function doUndo(){ const f=toastUndo; toastUndo=null; toastMsg=""; clearTimeout(toastT); render(); if(f){ try{ await f(); toast("Deshecho ↩︎") }catch(e){ toast("No he podido deshacerlo") } } }
 function go(t){ tab=t; LS.set("v2_tab",t); render(); window.scrollTo(0,0) }
 
 const TABS=[["hoy","🏠","Hoy"],["agenda","📅","Agenda"],["estudio","🎓","Estudio"],["gym","💪","Gym"],["mas","☰","Más"]];
-const MAS=["mas","tareas","habitos","comida","resumen","buscar","ajustes","tema"];
+const MAS=["mas","tareas","habitos","comida","resumen","buscar","ajustes","tema","ayuda"];
+
+function vAyuda(){ const sec=(t,col,items)=>`<div class="card"><div class="head" style="background:${col}"><span class="cap">${t}</span></div>${items.map(([a,b])=>`<div class="row" style="align-items:flex-start;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)"><b style="min-width:30px;font-size:18px">${a}</b><div>${b}</div></div>`).join("")}</div>`;
+  return `<button class="link mute" onclick="go('mas')">‹ Más</button><h1>Cómo se usa</h1>`+
+  sec("Calendario",C.sky,[["👆","<b>Toca un evento</b> para verlo. Para cambiarlo, <b>✏️ Editar</b>; para copiarlo, <b>⧉ Duplicar</b>."],
+    ["➕","<b>Toca una hora vacía</b> para apuntar algo. <b>Mantén pulsado y arrastra</b> en un hueco para elegir de qué hora a qué hora."],
+    ["⠿","<b>Puntitos de arriba a la derecha</b> de un bloque: arrástralos para moverlo (en Semana, también a otro día). En Mes, arrastra los ⠿ hasta otro día."],
+    ["▬","<b>Rayita de abajo</b> de un bloque: alárgalo o acórtalo."],
+    ["▕","<b>Franja libre a la derecha</b> de cada día: sirve para apuntar algo aunque a esa hora ya haya otra cosa."],
+    ["↔︎","<b>Desliza a los lados</b> para cambiar de día o de semana. En el ordenador: flechas ← → y T para volver a hoy."],
+    ["↩︎","Si mueves o marcas algo sin querer, pulsa <b>Deshacer</b> en el aviso de abajo."]])+
+  sec("Estudio",C.lav,[["⏩","Si avanzas en algo pero no lo acabas: <b>He avanzado, pero sigo otro día</b>. Cuenta los días y te pone otro bloque."],
+    ["✓","<b>Terminado</b> solo el último día: marca el tema o la entrega como hecha."],
+    ["▶︎","<b>Empezar</b> en un bloque arranca el temporizador de foco y al acabar lo marca solo."],
+    ["✨","<b>Planificar</b>: eliges TFG, gym, entregas y temas con sus horas, tu horario, comidas, sueño y vida social, y te propone la semana."]])+
+  sec("Gym",C.peach,[["🎧","Te avisa por los cascos de cada serie y descanso, y puedes seguir con Spotify."],["🌙","<b>Modo bolsillo</b>: pantalla negra para llevarlo en el bolsillo; mantén pulsado 1 s para salir."],["🏃‍♀️","Sábado: plan de correr de 8 semanas; al acabar eliges subir de semana o repetir."]])+
+  sec("Tus datos",C.sage,[["☁️","Se guardan en tu cuenta y se ven igual en el móvil y en el ordenador."],["📴","Sin internet puedes seguir apuntando tareas y notas; se suben solas al volver la conexión."],["🔕","Nada te avisa salvo lo que tú actives."]]) }
 function vMas(){
   const it=[["tareas","✅","Tareas y notas",C.peach,()=>{const n=Object.values(S.tareas).filter(t=>!t.hecho).length;return n?n+" pendientes":"Al día"}],
     ["habitos","🌱","Hábitos",C.pool,()=>`${habs().filter(x=>hasHab(today(),x.id)).length}/${habs().length} hoy`],
@@ -297,21 +315,31 @@ function vMas(){
     ["resumen","📊","Resumen semanal",C.sky,()=>hTxt(minsWeek())+" de estudio"],
     ["buscar","🔍","Buscar",C.lav,()=>"En todo"],
     ["tema","🎨","Apariencia",C.cotton,()=>(PALETAS[tema().paleta]||PALETAS.nordico).n],
-    ["ajustes","⚙︎","Datos y copia",C.sage,()=>dbState==="ok"?"En tu cuenta":"En este móvil"]];
+    ["ajustes","⚙︎","Datos y copia",C.sage,()=>dbState==="ok"?"En tu cuenta":"En este móvil"],
+    ["ayuda","❓","Cómo se usa",C.hay,()=>"Gestos y trucos"]];
   return `<h1>Más</h1><div class="grid2" style="margin-top:12px">${it.map(([k,ic,n,col,sub])=>`<button class="day" style="background:${col};min-height:110px" onclick="go('${k}')"><div style="font-size:26px">${ic}</div><b style="text-transform:none;letter-spacing:0;margin-top:6px">${n}</b><span>${esc(sub())}</span></button>`).join("")}</div>`;
 }
 function render(){
   applyTheme();
-  const v={tema:vTema,mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes}[tab]||vHoy;
-  let h=v(); if(toastMsg) h+=`<div class="toast">${esc(toastMsg)}</div>`;
+  const v={tema:vTema,mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes,ayuda:vAyuda}[tab]||vHoy;
+  let h; MEMO={};
+  try{ h=v() }catch(err){ console.error(err); h=`<div class="card" style="margin-top:20px"><b>Uy, algo ha fallado en esta pantalla</b><div class="sub" style="margin-top:6px">${esc(String(err&&err.message||err)).slice(0,200)}</div>
+    <div class="row" style="gap:8px;margin-top:12px"><button class="btn small" onclick="go('hoy')">Ir a Hoy</button><button class="btn small ghost" onclick="location.reload()">Recargar</button></div></div>` }
+  if(!navigator.onLine) h=`<div class="note" style="margin:0 0 8px;padding:8px 12px;border-radius:12px;background:${C.daff};color:#252D45;font-weight:600">📴 Sin conexión. Ves lo último que se cargó; tus tareas y notas se guardan y se suben al volver internet. Los cambios del calendario necesitan conexión.</div>`+h;
+  if(toastMsg) h+=`<div class="toast">${esc(toastMsg)}${toastUndo?` <button onclick="doUndo()" style="margin-left:10px;font-weight:800;text-decoration:underline;color:inherit">Deshacer</button>`:""}</div>`;
   const sc0=document.getElementById("tlsc"), keep=sc0?{k:sc0.dataset.k,t:sc0.scrollTop,l:sc0.scrollLeft}:null;
   if(qAdd) h+=qAddSheet(); else if(evView) h+=evViewSheet();
   document.getElementById("app").innerHTML=h;
   const sc=document.getElementById("tlsc"); if(sc){ if(keep&&keep.k===sc.dataset.k){ sc.scrollTop=keep.t; sc.scrollLeft=keep.l } else sc.scrollTop=+sc.dataset.st||0 }
   const pk=document.getElementById("pocket"); if(pk) pk.innerHTML=pocketHtml();
   document.getElementById("tabs").innerHTML=TABS.map(([k,i,l])=>`<button class="${tab===k||(k==="mas"&&MAS.includes(tab))?"on":""}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${k==="gym"&&W?" •":""}${k==="estudio"&&F?" •":""}</button>`).join("");
-  tick();
+  MEMO=null; tick();
 }
+let MEMO=null;
+window.addEventListener("online",()=>{ render(); toast("Conexión recuperada ✓") });
+window.addEventListener("offline",()=>render());
+window.addEventListener("error",ev=>{ try{ console.error(ev.error||ev.message) }catch(e){} });
+window.addEventListener("unhandledrejection",ev=>{ try{ console.error(ev.reason) }catch(e){} });
 
 /* ================= CALENDARIO (Google) ================= */
 const CAL="Google Calendar";
@@ -365,8 +393,8 @@ async function loadRange(key,start,end){
   }catch(e){ rng[key]={events:(r&&r.events)||null,at:Date.now()-240000,err:e} }
   schedule();
 }
-function allEvents(){ const m=new Map(); for(const e of (cal.events||[])) m.set(e.id,e); for(const k in rng) for(const e of (rng[k].events||[])) if(!m.has(e.id)) m.set(e.id,e); return [...m.values()] }
-const evById=id=>allEvents().find(e=>e.id===id);
+function allEvents(){ if(MEMO&&MEMO.all) return MEMO.all; const m=new Map(); for(const e of (cal.events||[])) m.set(e.id,e); for(const k in rng) for(const e of (rng[k].events||[])) if(!m.has(e.id)) m.set(e.id,e); const out=[...m.values()]; if(MEMO){ MEMO.all=out; MEMO.byId=m } return out }
+const evById=id=>{ if(MEMO){ if(!MEMO.byId) allEvents(); return MEMO.byId.get(id) } return allEvents().find(e=>e.id===id) };
 function evsOn(list,d){ const a=new Date(d);a.setHours(0,0,0,0); const b=addDays(a,1); return list.filter(e=>e.s<b&&e.e>a).sort((x,y)=>(y.allDay-x.allDay)||(x.s-y.s)) }
 function eventsOn(d){ return evsOn(cal.events||[],d) }
 function calErrBox(){
@@ -401,7 +429,8 @@ function avanzarBlock(id){
   if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){ x.dias=(x.dias||0)+1; x.fecha=null }});
   if(info.ent){ const ed=Object.assign({},S.app.entdias||{}); ed[info.ent.id]=(ed[info.ent.id]||0)+1; putDoc("app","entdias",ed) }
   all[id]={d:today(),foco:fid,parcial:true}; putDoc("app","bloques",all); contOpen=true;
-  toast(`⏩ Avanzado${info.materia?` · +${min} min`:""}. ¿Cuándo sigues?`); render() }
+  toast(`⏩ Avanzado${info.materia?` · +${min} min`:""}. ¿Cuándo sigues?`,()=>{ const all2=Object.assign({},bDone()), r=all2[id]; if(!r) return; if(r.foco) removeDoc("foco",r.foco); delete all2[id]; putDoc("app","bloques",all2);
+    if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x&&x.dias) x.dias--}); if(info.ent){ const ed=Object.assign({},S.app.entdias||{}); if(ed[info.ent.id]) ed[info.ent.id]--; putDoc("app","entdias",ed) } contOpen=false }); render() }
 function toggleBlock(id){
   const e=evById(id); if(!e) return; const all=Object.assign({},bDone()), info=blockInfo(e);
   if(all[id]){ const r=all[id]; if(r.foco) removeDoc("foco",r.foco); if(info.a&&info.tema) setTemas(info.a.id,T=>{const x=T.find(y=>y.id===info.tema.id); if(x){x.done=false;x.doneEl=null}}); if(info.task&&S.tareas[info.task]) putDoc("tareas",info.task,Object.assign({},S.tareas[info.task],{hecho:false,hechoEl:null})); if(r.ent&&info.ent&&info.ent.done) toggleEnt(info.ent.kind,info.ent.id); delete all[id]; putDoc("app","bloques",all); return }
@@ -411,7 +440,7 @@ function toggleBlock(id){
   if(info.task&&S.tareas[info.task]) putDoc("tareas",info.task,Object.assign({},S.tareas[info.task],{hecho:true,hechoEl:today()}));
   if(info.ent&&!info.ent.done) toggleEnt(info.ent.kind,info.ent.id);
   all[id]={d:today(),foco:fid,ent:info.ent?1:0}; putDoc("app","bloques",all);
-  toast(info.task?"✓ Tarea hecha":info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho");
+  toast(info.task?"✓ Tarea hecha":info.tema?`✓ ${info.tema.n} hecho · +${min} min de ${info.materia}`:info.materia?`✓ +${min} min de ${info.materia}`:"✓ Hecho",()=>{ if(bDone()[id]) toggleBlock(id) });
 }
 function evRow(e,drag){
   const blk=isBlock(e), dn=blk&&blockDone(e);
@@ -547,6 +576,8 @@ function organizar(){
   items.sort((x,y)=>x.a-y.a); dprop={day,items,noFit}; render();
   if(!items.length) toast(noFit.length?"Hoy no queda hueco para esas tareas":"No hay tareas marcadas para hoy");
 }
+async function undoMove(id,s0,e0,allDay){ if(!mcp) throw 0;
+  await mcp.callTool(CAL,"update_event",allDay?{eventId:id,allDay:true,startTime:ymd(s0)+"T00:00:00",endTime:ymd(e0)+"T00:00:00"}:{eventId:id,startTime:`${ymd(s0)}T${hm(s0)}:00`,endTime:`${ymd(e0)}T${hm(e0)}:00`}); await calChanged(); render() }
 async function pasarAManana(){
   if(!mcp||dBusy) return; const day=agDia, td=today(); let tgt=ymd(addDays(parseYmd(day),1)); if(tgt<td) tgt=td;
   const cf=diaCfg(); dBusy=true; render();
@@ -555,11 +586,12 @@ async function pasarAManana(){
   if(tgt===td&&st>=cf.fin){ tgt=ymd(addDays(tD,1)); st=cf.ini; const t2=parseYmd(tgt); await loadRange("d"+tgt,t2,addDays(t2,1)) }
   const pend=evsOn(allEvents(),parseYmd(day)).filter(e=>isBlock(e)&&!blockDone(e)&&!/^💪/u.test(e.t));
   let free=freeSlots(parseYmd(tgt),busyOn(parseYmd(tgt),allEvents()),[[st,cf.fin]]).map(x=>[x[0],x[1]]), ok=0, nof=0;
+  const undoL=[];
   for(const e of pend){ const dur=Math.round((e.e-e.s)/60000), sl=free.find(([a,b])=>b-a>=dur); if(!sl){ nof++; continue }
-    try{ await mcp.callTool(CAL,"update_event",{eventId:e.id,startTime:`${tgt}T${mm(sl[0])}:00`,endTime:`${tgt}T${mm(sl[0]+dur)}:00`}); sl[0]+=dur+cf.gap; ok++ }
+    try{ await mcp.callTool(CAL,"update_event",{eventId:e.id,startTime:`${tgt}T${mm(sl[0])}:00`,endTime:`${tgt}T${mm(sl[0]+dur)}:00`}); undoL.push([e.id,e.s,e.e]); sl[0]+=dur+cf.gap; ok++ }
     catch(x){ toast("Paré a mitad: mira la agenda antes de repetir"); break } }
   for(const [k,t] of Object.entries(S.tareas)) if(!t.hecho&&t.fecha===day&&!pend.some(e=>blockInfo(e).task===k)) putDoc("tareas",k,Object.assign({},t,{fecha:tgt}));
-  dBusy=false; await calChanged(); toast(ok?`${ok} pasadas al ${fmtDay(parseYmd(tgt),{weekday:"long"})} ✓${nof?` · ${nof} no caben`:""}`:"No hay hueco libre ese día"); render();
+  dBusy=false; await calChanged(); toast(ok?`${ok} pasadas al ${fmtDay(parseYmd(tgt),{weekday:"long"})} ✓${nof?` · ${nof} no caben`:""}`:"No hay hueco libre ese día",undoL.length?async()=>{ for(const [i,a,b] of undoL) await mcp.callTool(CAL,"update_event",{eventId:i,startTime:`${ymd(a)}T${hm(a)}:00`,endTime:`${ymd(b)}T${hm(b)}:00`}); await calChanged(); render() }:null); render();
 }
 async function guardarDia(){
   if(!dprop||dBusy||!mcp) return; dBusy=true; render(); let ok=0;
@@ -700,7 +732,7 @@ async function tlEnd(){ if(!TD) return; const d=TD; TD=null; clearTimeout(d.t); 
   const list=[...(cal.events||[])]; for(const k in rng) list.push(...(rng[k].events||[]));
   const olds=list.filter(e=>e.id===d.id).map(e=>[e,e.s,e.e]);
   for(const [e] of olds){ e.s=new Date(parseYmd(day).getTime()+d.na*60000); e.e=new Date(parseYmd(day).getTime()+d.nb*60000) } render();
-  try{ await mcp.callTool(CAL,"update_event",{eventId:d.id,startTime:`${day}T${mm(d.na)}:00`,endTime:`${day}T${mm(d.nb)}:00`}); toast(moved?`Movido al ${fmtDay(parseYmd(day),{weekday:"long"})} a las ${mm(d.na)} ✓`:`Movido a las ${mm(d.na)} ✓`); await calChanged(); render() }
+  try{ await mcp.callTool(CAL,"update_event",{eventId:d.id,startTime:`${day}T${mm(d.na)}:00`,endTime:`${day}T${mm(d.nb)}:00`}); const o0=olds[0], us=o0&&o0[1], ue=o0&&o0[2]; toast(moved?`Movido al ${fmtDay(parseYmd(day),{weekday:"long"})} a las ${mm(d.na)} ✓`:`Movido a las ${mm(d.na)} ✓`,us?()=>undoMove(d.id,us,ue):null); await calChanged(); render() }
   catch(x){ for(const [e,s0,e0] of olds){ e.s=s0; e.e=e0 } render(); toast("Google no dejó moverlo") }
 }
 const tPt=ev=>{ const t=(ev.touches&&ev.touches[0])||(ev.changedTouches&&ev.changedTouches[0]); return {target:ev.target,clientX:t.clientX,clientY:t.clientY,preventDefault:()=>{ if(ev.cancelable) ev.preventDefault() }} };
@@ -737,7 +769,8 @@ async function ddEnd(){ if(!DD) return; const d=DD; DD=null; d.g.remove(); tlLas
   const inp=e.allDay?{eventId:e.id,allDay:true,startTime:ymd(ns)+"T00:00:00",endTime:ymd(ne)+"T00:00:00"}:{eventId:e.id,startTime:`${ymd(ns)}T${hm(ns)}:00`,endTime:`${ymd(ne)}T${hm(ne)}:00`};
   const olds=[]; const L=[...(cal.events||[])]; for(const k in rng) L.push(...(rng[k].events||[])); for(const x of L) if(x.id===e.id){ olds.push([x,x.s,x.e]); x.s=addDays(x.s,shift); x.e=addDays(x.e,shift) }
   agSel=d.day; render();
-  try{ await mcp.callTool(CAL,"update_event",inp); toast(`Pasado al ${fmtDay(ns,{weekday:"long",day:"numeric"})} ✓`); await calChanged(); render() }
+  const s0=olds[0]?olds[0][1]:addDays(e.s,-shift), e0=olds[0]?olds[0][2]:addDays(e.e,-shift);
+  try{ await mcp.callTool(CAL,"update_event",inp); toast(`Pasado al ${fmtDay(ns,{weekday:"long",day:"numeric"})} ✓`,()=>undoMove(d.id,s0,e0,e.allDay)); await calChanged(); render() }
   catch(x){ for(const [o,s0,e0] of olds){ o.s=s0; o.e=e0 } render(); toast("Google no dejó moverlo") } }
 document.addEventListener("pointerdown",ev=>{ if(ev.pointerType!=="touch") ddStart(ev) });
 document.addEventListener("pointermove",ev=>{ if(DD&&ev.pointerType!=="touch") ddMove(ev) },{passive:false});
@@ -1062,7 +1095,7 @@ let tNew={t:"",fecha:"",cat:"TFG"}, showDone=false, tEdit=null;
 function openTask(id){ const t=S.tareas[id]; if(!t) return; tEdit={id,t:t.t,fecha:t.fecha||"",cat:t.cat}; render() }
 function saveTask(){ const x=tEdit, t=S.tareas[x.id]; if(!t||!x.t.trim()) return; putDoc("tareas",x.id,Object.assign({},t,{t:x.t.trim(),fecha:x.fecha||null,cat:x.cat})); tEdit=null; render() }
 function addTask(){ const t=tNew.t.trim(); if(!t) return; putDoc("tareas",uid(),{t,fecha:tNew.fecha||null,cat:tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
-function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); }
+function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); if(!t.hecho) toast("✓ Hecha",()=>{ const x=S.tareas[id]; if(x&&x.hecho) putDoc("tareas",id,Object.assign({},x,{hecho:false,hechoEl:null})) }) }
 function delTask(id){ removeDoc("tareas",id) }
 function taskRow(id,t){
   if(tEdit&&tEdit.id===id) return `<div class="it" style="display:block"><input value="${esc(tEdit.t)}" oninput="tEdit.t=this.value">
@@ -1401,7 +1434,8 @@ const dTxt=n=>n===0?"hoy":n===1?"mañana":n<0?`hace ${-n} d`:`en ${n} días`;
 function minsWeek(materia){ const ws=ymd(addDays(new Date(),-((new Date().getDay()+6)%7))); return Object.values(S.foco).filter(f=>f.ymd>=ws&&(!materia||f.materia===materia)).reduce((a,f)=>a+(f.min||0),0) }
 const hTxt=m=>m>=60?`${Math.floor(m/60)} h ${m%60?m%60+" min":""}`:`${m} min`;
 function estRange(){ if(!mcp) return; const t=new Date(); t.setHours(0,0,0,0); loadRange("est"+ymd(t),addDays(t,-7),addDays(t,200)) }
-function calFor(code){ estRange(); const re=new RegExp("\\b"+code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i"); return allEvents().filter(e=>re.test(e.t)) }
+function calFor(code){ if(MEMO&&MEMO["cf"+code]) return MEMO["cf"+code]; const r=calFor0(code); if(MEMO) MEMO["cf"+code]=r; return r }
+function calFor0(code){ estRange(); const re=new RegExp("\\b"+code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\b","i"); return allEvents().filter(e=>re.test(e.t)) }
 
 /* --- Foco (pomodoro) --- */
 let F=null, fCfg=Object.assign({foco:25,desc:5,materia:"TFG"},LS.get("foco_cfg",{})), fTimer=null;
@@ -1489,7 +1523,8 @@ async function copyLog(){ const txt=Object.values(S.tfglog).sort((a,b)=>a.fecha.
 /* --- Asignaturas: entregas --- */
 const entDone=()=>est().hechas||{};
 let showHechas={}, entNew={asig:null,t:"",d:"",cal:true}, entBusy=false;
-function entregasOf(code){
+function entregasOf(code){ if(MEMO&&MEMO["en"+code]) return MEMO["en"+code]; const r=entregasOf0(code); if(MEMO) MEMO["en"+code]=r; return r }
+function entregasOf0(code){
   const hd=entDone(), now=addDays(new Date(),-1);
   const fromCal=calFor(code).filter(e=>/entrega|examen|prueba|parcial|trabajo/i.test(e.t)&&e.e>now).map(e=>({kind:"ev",id:e.id,t:e.t.replace(/^[⚠️📝\s]+/u,""),d:ymd(e.s),done:!!hd[e.id]}));
   const fromTask=Object.entries(S.tareas).filter(([k,x])=>x.cat===code&&(x.fecha||!x.hecho)).map(([k,x])=>({kind:"task",id:k,t:x.t,d:x.fecha||"",done:!!x.hecho}));
