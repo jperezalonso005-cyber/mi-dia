@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794746089"></script>
-<script src="supabase.js?v=1794746089"></script>
-<script src="standalone.js?v=1794746089"></script>
+<script src="config.js?v=1794746160"></script>
+<script src="supabase.js?v=1794746160"></script>
+<script src="standalone.js?v=1794746160"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -727,7 +727,7 @@ document.addEventListener("touchmove",ev=>{ if(DD) ddMove(tPt(ev)) },{passive:fa
 document.addEventListener("touchend",()=>{ if(DD) ddEnd() });
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true,trab:{},
-  ini:540,fin:1260,fini:600,ffin:1260,maxDia:5,viaje:30,des:[480,30],com:[840,60],cen:[1260,45],comidas:true,socialH:4,socialDias:[5,6],socialIni:1200,tfgDias:[1,3,5],tfgHdia:2,tfgFr:"x"},S.app.plan||{});
+  ini:540,fin:1260,fini:600,ffin:1260,maxDia:5,viaje:30,des:[480,30],com:[840,60],cen:[1260,45],comidas:true,socialH:4,socialDias:[5,6],socialIni:1200,tfgDias:[1,3,5],tfgHdia:2,tfgFr:"x",despL:480,despF:570,suenoH:8},S.app.plan||{});
 const pTrab=()=>plan().trab||{};
 const pSocial=()=>{ const P=plan(); if(P.social) return P.social; const o={}; for(const d of (P.socialDias||[])) o[d]={ini:P.socialIni||1200,h:Math.max(1,Math.round((P.socialH||4)/Math.max(1,(P.socialDias||[]).length)))}; return o };
 function setSocial(d,patch){ const o=Object.assign({},pSocial()); if(patch===null) delete o[d]; else o[d]=Object.assign({ini:1200,h:3},o[d]||{},patch); savePlan({social:o}); prop=null }
@@ -767,15 +767,6 @@ async function genPlan(){
     return {d,k,free:freeSlots(d,busy,[[wk?P.fini:P.ini,wk?P.ffin:P.fin]]),n:0,est:0,wk} });
   const add=(c,dur,title,cat,pref,pad)=>{ pad=pad||0; const sl=takeSlot(c.free,dur+2*pad,pref); if(!sl) return false; out.push({id:uid(),d:c.k,a:sl[0]+pad,b:sl[0]+pad+dur,t:title,cat}); c.n++; return true };
   const cap=c=>P.maxDia*60-c.est;
-  // gym (con ida y vuelta)
-  for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][dow]);
-    if(R&&(R.id==="martes"||R.id==="domingo")) continue; const run=R&&R.id==="sabado", dur=run?50:105, tit=run?"🏃‍♀️ Correr · semana "+runWeek():`💪 Gym · ${R?R.t:"entreno"}`;
-    const hr=(P.gymHora||{})[dow]; const V=P.viaje||0;
-    if(typeof hr==="number"){ const fr=c.free.find(([x,y])=>x<=hr-V&&y>=hr+dur+V)||c.free.find(([x,y])=>y-Math.max(x,hr-V)>=dur+2*V&&y>hr);
-      if(fr){ const A=Math.max(fr[0]+V,hr); out.push({id:uid(),d:c.k,a:A,b:A+dur,t:tit,cat:"deporte"}); c.n++; const s0=A-V,e0=A+dur+V; c.free=c.free.flatMap(([x,y])=>e0<=x||s0>=y?[[x,y]]:[[x,s0],[e0,y]].filter(([p,q])=>q-p>=30)) }
-      else{ // libre fuera de tu horario de estudio: lo pongo igual a esa hora
-        out.push({id:uid(),d:c.k,a:hr,b:hr+dur,t:tit,cat:"deporte"}) } }
-    else add(c,dur,tit,"deporte",hr==="t"?false:hr==="m"?true:P.manana,V) }
   // vida social: el día y la hora que tú dices
   const SO=pSocial();
   for(const c of ctx){ const so=SO[c.d.getDay()]; if(!so) continue; const per=Math.round(so.h*60);
@@ -785,6 +776,20 @@ async function genPlan(){
     if(A==null) continue; const B=sl[1]>=1440?A+per:Math.min(sl[1],A+per);
     out.push({id:uid(),d:c.k,a:A,b:B,t:"🥂 Vida social",cat:"plan"});
     c.free=c.free.flatMap(([x,y])=>B<=x||A>=y?[[x,y]]:[[x,A],[B,y]].filter(([p,q])=>q-p>=30)) }
+  // dormir: no pongo nada antes de que te levantes; si sales hasta tarde, el día siguiente empieza más tarde
+  for(let i=0;i<ctx.length;i++){ const c=ctx[i], wk=c.wk; let wake=wk?P.despF:P.despL;
+    const prevK=ymd(addDays(c.d,-1)), late=out.filter(x=>x.d===prevK&&x.cat==="plan").concat(evs.filter(e=>!e.allDay&&ymd(e.s)===prevK&&/fiesta|cena|plan|🥂/iu.test(e.t)).map(e=>({b:ymd(e.e)===prevK?toMin(e.e):1440+toMin(e.e)})));
+    for(const x of late){ const w2=x.b+P.suenoH*60-1440; if(w2>wake) wake=Math.min(w2,16*60) }
+    c.wake=wake; c.free=c.free.map(([x,y])=>[Math.max(x,wake),y]).filter(([x,y])=>y-x>=30) }
+  // gym (con ida y vuelta)
+  for(const c of ctx){ const dow=c.d.getDay(); if(!P.gymDias.includes(dow)) continue; const R=rutina().find(r=>r.id===["domingo","lunes","martes","miercoles","jueves","viernes","sabado"][dow]);
+    if(R&&(R.id==="martes"||R.id==="domingo")) continue; const run=R&&R.id==="sabado", dur=run?50:105, tit=run?"🏃‍♀️ Correr · semana "+runWeek():`💪 Gym · ${R?R.t:"entreno"}`;
+    const hr=(P.gymHora||{})[dow]; const V=P.viaje||0;
+    if(typeof hr==="number"){ const fr=c.free.find(([x,y])=>x<=hr-V&&y>=hr+dur+V)||c.free.find(([x,y])=>y-Math.max(x,hr-V)>=dur+2*V&&y>hr);
+      if(fr){ const A=Math.max(fr[0]+V,hr); out.push({id:uid(),d:c.k,a:A,b:A+dur,t:tit,cat:"deporte"}); c.n++; const s0=A-V,e0=A+dur+V; c.free=c.free.flatMap(([x,y])=>e0<=x||s0>=y?[[x,y]]:[[x,s0],[e0,y]].filter(([p,q])=>q-p>=30)) }
+      else{ // libre fuera de tu horario de estudio: lo pongo igual a esa hora
+        out.push({id:uid(),d:c.k,a:hr,b:hr+dur,t:tit,cat:"deporte"}) } }
+    else add(c,dur,tit,"deporte",hr==="t"?false:hr==="m"?true:P.manana,V) }
   let leftT=0; const TR=pTrab();
   // TFG: los días elegidos, las horas elegidas (en trozos si hace falta)
   for(const c of ctx.filter(c=>P.tfgDias.includes(c.d.getDay()))){ let rem=Math.min(Math.round(P.tfgHdia*60),cap(c));
@@ -883,7 +888,12 @@ function planVidaCard(){ const P=plan(), sp=(k,v)=>`savePlan({${k}:${v}});prop=n
   return `<div class="card"><div class="head" style="${hs('h:Mi vida','sage')}"><span class="cap">🌿 Mi vida</span></div>
     <div class="row between" style="padding:6px 0;gap:6px;flex-wrap:wrap"><span>Entre semana, de</span><div class="row" style="gap:4px">${tSel2(P.ini,sp("ini","+this.value"))}<span class="sub">a</span>${tSel2(P.fin,sp("fin","+this.value"))}</div></div>
     <div class="row between" style="padding:6px 0;gap:6px;flex-wrap:wrap"><span>Fin de semana, de</span><div class="row" style="gap:4px">${tSel2(P.fini,sp("fini","+this.value"))}<span class="sub">a</span>${tSel2(P.ffin,sp("ffin","+this.value"))}</div></div>
-    <div class="row between" style="padding:6px 0"><span>Máx. de estudio y trabajo al día</span>${stp(P.maxDia+" h","","").replace('onclick=""',`onclick="${sp("maxDia","Math.max(1,plan().maxDia-0.5)")}"`).replace('onclick=""',`onclick="${sp("maxDia","Math.min(14,plan().maxDia+0.5)")}"`)}</div>
+    <div style="padding:8px 0 4px;border-top:1px solid var(--line);margin-top:6px"><b>😴 Dormir</b></div>
+    <div class="row between" style="padding:4px 0;gap:6px;flex-wrap:wrap"><span>Entre semana me levanto a las</span>${tSel2(P.despL,sp("despL","+this.value"),15)}</div>
+    <div class="row between" style="padding:4px 0;gap:6px;flex-wrap:wrap"><span>Fin de semana me levanto a las</span>${tSel2(P.despF,sp("despF","+this.value"),15)}</div>
+    <div class="row between" style="padding:4px 0 6px;gap:6px"><span>Horas de sueño</span>${hSel(P.suenoH,sp("suenoH","+this.value"),5,12)}</div>
+    <div class="sub" style="font-size:12px">Si sales hasta tarde (tu vida social o un plan 🥂 en el calendario), el día siguiente no te pongo nada hasta que hayas dormido esas horas.</div>
+    <div class="row between" style="padding:8px 0 6px;border-top:1px solid var(--line);margin-top:6px"><span>Máx. de estudio y trabajo al día</span>${stp(P.maxDia+" h","","").replace('onclick=""',`onclick="${sp("maxDia","Math.max(1,plan().maxDia-0.5)")}"`).replace('onclick=""',`onclick="${sp("maxDia","Math.min(14,plan().maxDia+0.5)")}"`)}</div>
     <div class="sub" style="font-size:12px;margin-top:-2px">El resto es tiempo libre para ti.</div>
     <div class="row between" style="padding:8px 0 6px;border-top:1px solid var(--line);margin-top:6px"><span>Ir y volver a clase y al gym</span>${stp(P.viaje+" min","","").replace('onclick=""',`onclick="${sp("viaje","Math.max(0,plan().viaje-15)")}"`).replace('onclick=""',`onclick="${sp("viaje","Math.min(120,plan().viaje+15)")}"`)}</div>
     <div class="row between" style="padding:8px 0 2px;border-top:1px solid var(--line);margin-top:6px"><span>🍽 Respetar las comidas</span><button class="sw ${P.comidas?"on":""}" onclick="${sp("comidas","!plan().comidas")}"></button></div>
