@@ -118,9 +118,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794745064"></script>
-<script src="supabase.js?v=1794745064"></script>
-<script src="standalone.js?v=1794745064"></script>
+<script src="config.js?v=1794745287"></script>
+<script src="supabase.js?v=1794745287"></script>
+<script src="standalone.js?v=1794745287"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -848,12 +848,17 @@ function vPend(){
 
 const tSel2=(v,fn,step)=>`<select style="width:auto;padding:6px 8px" onchange="${fn}">${Array.from({length:1440/(step||30)+1},(_,i)=>i*(step||30)).map(m=>`<option value="${m}" ${m===v?"selected":""}>${m===1440?"24:00":mm(m)}</option>`).join("")}</select>`;
 const stp=(lab,val,dec,inc)=>`<div class="row" style="gap:4px;align-items:center"><button class="btn small ghost" style="padding:4px 10px" onclick="${dec}">−</button><b style="min-width:58px;text-align:center;font-size:14px">${lab}</b><button class="btn small ghost" style="padding:4px 10px" onclick="${inc}">+</button></div>`;
-function planTrabCard(){ const its=trabItems(), TR=pTrab();
-  return `<div class="card"><div class="head" style="${hs('h:Entregas y tareas','peach')}"><span class="cap">📝 Entregas, tareas, temas y ejercicios</span><span class="cap">${Object.keys(TR).filter(k=>its.some(i=>i.id===k)).length} elegidas</span></div>
-    <div class="sub">Marca en las que quieres trabajar, cuántas horas te llevan en total y cuánto le puedes dar como mucho cada día. Lo reparto antes de su fecha (para temas, antes del examen si lo tienes puesto), en trozos aunque no sean seguidos.</div>
+let trabSel=LS.get("trab_sel",null);
+function planTrabCard(){ const all=trabItems(), TR=pTrab(), codes=asigs().map(a=>a.code);
+  const groups=[...asigs().map(a=>({k:a.code,n:a.code,col:a.col})),{k:"_otras",n:"Otras tareas",col:C.sky}].filter(g=>all.some(x=>g.k==="_otras"?!codes.includes(x.code):x.code===g.k));
+  const g=groups.find(x=>x.k===trabSel)||groups[0], its=g?all.filter(x=>g.k==="_otras"?!codes.includes(x.code):x.code===g.k):[];
+  return `<div class="card"><div class="head" style="${hs('h:Entregas y tareas','peach')}"><span class="cap">📝 Entregas, tareas, temas y ejercicios</span><span class="cap">${Object.keys(TR).filter(k=>all.some(i=>i.id===k)).length} elegidas</span></div>
+    <div class="sub">Elige asignatura, marca lo que quieres hacer, cuántas horas te lleva en total y cuánto le puedes dar como mucho al día. Lo reparto antes de su fecha (temas: antes del examen si lo tienes puesto), en trozos aunque no sean seguidos.</div>
+    ${groups.length?`<div class="row" style="gap:6px;flex-wrap:wrap;margin:10px 0 4px">${groups.map(x=>{ const on=g&&x.k===g.k, nSel=all.filter(i=>(x.k==="_otras"?!codes.includes(i.code):i.code===x.k)&&TR[i.id]).length;
+      return `<button class="pill" style="padding:8px 12px;font-size:13px;font-weight:700;background:${on?x.col:"var(--soft)"};color:${on?"#252D45":"var(--mute)"};${on?"":`border:2px solid ${x.col}`}" onclick="trabSel='${esc(x.k)}';LS.set('trab_sel','${esc(x.k)}');render()">${esc(x.n)}${nSel?` · ${nSel}✓`:""}</button>` }).join("")}</div>`:""}
     ${its.length?`<div class="list">${its.map(x=>{ const on=!!TR[x.id], c=TR[x.id]||{}, n=x.d?daysTo(x.d):null;
       return `<div class="it" style="display:block"><div class="row"><button class="chk ${on?"on":""}" style="${on?`background:${C.peach};border-color:transparent;color:#252D45`:""}" onclick="setTrab('${esc(x.id)}',${on?"null":"{}"})">${on?"✓":""}</button>
-        <div class="grow"><div>${x.ic} ${esc(x.t)}</div><div class="sub" style="font-size:12px">${esc(x.code||"")}${n!=null?` · <b style="${n<=3?`color:${C.poppy}`:""}">${esc(dTxt(n))}</b>`:" · sin fecha"}${x.tema&&x.d?" (examen)":""}${(S.app.entdias||{})[x.id]||x.dias?` · ⏩ ${(S.app.entdias||{})[x.id]||x.dias} días trabajados`:""}</div></div></div>
+        <div class="grow"><div>${x.ic} ${esc(x.t)}</div><div class="sub" style="font-size:12px">${x.tema?"Tema / ejercicio":x.ic==="📝"?"Entrega":"Tarea"}${n!=null?` · <b style="${n<=3?`color:${C.poppy}`:""}">${esc(dTxt(n))}</b>`:" · sin fecha"}${x.tema&&x.d?" (examen)":""}${(S.app.entdias||{})[x.id]||x.dias?` · ⏩ ${(S.app.entdias||{})[x.id]||x.dias} días trabajados`:""}</div></div></div>
         ${on?`<div class="row between" style="margin:8px 0 0 38px;flex-wrap:wrap;gap:6px"><span class="sub">Horas en total</span>${stp(c.h+" h","","")
           .replace('onclick=""',`onclick="setTrab('${esc(x.id)}',{h:Math.max(0.5,(pTrab()['${esc(x.id)}'].h||4)-0.5)})"`).replace('onclick=""',`onclick="setTrab('${esc(x.id)}',{h:(pTrab()['${esc(x.id)}'].h||4)+0.5})"`)}</div>
           <div class="row between" style="margin:6px 0 0 38px;flex-wrap:wrap;gap:6px"><span class="sub">Máx. al día</span>${stp(c.dia+" h","","")
