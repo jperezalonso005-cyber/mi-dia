@@ -127,9 +127,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794749048"></script>
-<script src="supabase.js?v=1794749048"></script>
-<script src="standalone.js?v=1794749048"></script>
+<script src="config.js?v=1794749451"></script>
+<script src="supabase.js?v=1794749451"></script>
+<script src="standalone.js?v=1794749451"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -1105,12 +1105,12 @@ function openTask(id){ const t=S.tareas[id]; if(!t) return; tEdit={id,t:t.t,fech
 function saveTask(){ const x=tEdit, t=S.tareas[x.id]; if(!t||!x.t.trim()) return; putDoc("tareas",x.id,Object.assign({},t,{t:x.t.trim(),fecha:x.fecha||null,cat:x.cat})); tEdit=null; render() }
 function addTask(){ const t=tNew.t.trim(); if(!t) return; putDoc("tareas",uid(),{t,fecha:tNew.fecha||null,cat:tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
 function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); if(!t.hecho) toast("✓ Hecha",()=>{ const x=S.tareas[id]; if(x&&x.hecho) putDoc("tareas",id,Object.assign({},x,{hecho:false,hechoEl:null})) }) }
-function delTask(id){ removeDoc("tareas",id) }
+function delTask(id){ const t=S.tareas[id]; removeDoc("tareas",id); if(t&&!tEdit) toast("Tarea borrada",()=>putDoc("tareas",id,t)) }
 function taskRow(id,t){
   if(tEdit&&tEdit.id===id) return `<div class="it" style="display:block"><input value="${esc(tEdit.t)}" oninput="tEdit.t=this.value">
     <div class="row" style="margin-top:8px"><input type="date" value="${tEdit.fecha}" onchange="tEdit.fecha=this.value">
     <select onchange="tEdit.cat=this.value">${Object.keys(cats()).map(c=>`<option ${c===tEdit.cat?"selected":""}>${c}</option>`).join("")}</select></div>
-    <div class="row" style="margin-top:8px"><button class="btn small" onclick="saveTask()">Guardar</button><button class="link mute" onclick="tEdit=null;render()">Cancelar</button></div></div>`;
+    <div class="row" style="margin-top:8px"><button class="btn small" onclick="saveTask()">Guardar</button><button class="link mute" onclick="tEdit=null;render()">Cancelar</button><button class="link" style="margin-left:auto;color:${C.poppy}" onclick="const t=Object.assign({},S.tareas['${id}']);delTask('${id}');tEdit=null;toast('Tarea borrada',()=>putDoc('tareas','${id}',t))">🗑 Borrar</button></div></div>`;
   const od=t.fecha&&!t.hecho&&t.fecha<today();
   const fl=t.fecha?(t.fecha===today()?"Hoy":t.fecha===ymd(addDays(new Date(),1))?"Mañana":fmtDay(parseYmd(t.fecha),{day:"numeric",month:"short"})):"";
   return `<div class="it"><button class="chk ${t.hecho?"on":""}" style="${t.hecho?`background:${C.pool}`:""}" onclick="toggleTask('${id}')">${t.hecho?"✓":""}</button>
