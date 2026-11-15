@@ -117,9 +117,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794743279"></script>
-<script src="supabase.js?v=1794743279"></script>
-<script src="standalone.js?v=1794743279"></script>
+<script src="config.js?v=1794743417"></script>
+<script src="supabase.js?v=1794743417"></script>
+<script src="standalone.js?v=1794743417"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -299,7 +299,7 @@ function render(){
   const v={tema:vTema,mas:vMas,resumen:vResumen,buscar:vBuscar,hoy:vHoy,agenda:vAgenda,estudio:vEstudio,tareas:vTareas,habitos:vHabitos,comida:vComida,gym:vGym,ajustes:vAjustes}[tab]||vHoy;
   let h=v(); if(toastMsg) h+=`<div class="toast">${esc(toastMsg)}</div>`;
   const sc0=document.getElementById("tlsc"), keep=sc0?{k:sc0.dataset.k,t:sc0.scrollTop,l:sc0.scrollLeft}:null;
-  if(qAdd) h+=qAddSheet();
+  if(qAdd) h+=qAddSheet(); else if(evView) h+=evViewSheet();
   document.getElementById("app").innerHTML=h;
   const sc=document.getElementById("tlsc"); if(sc){ if(keep&&keep.k===sc.dataset.k){ sc.scrollTop=keep.t; sc.scrollLeft=keep.l } else sc.scrollTop=+sc.dataset.st||0 }
   const pk=document.getElementById("pocket"); if(pk) pk.innerHTML=pocketHtml();
@@ -400,7 +400,7 @@ function toggleBlock(id){
 }
 function evRow(e){
   const blk=isBlock(e), dn=blk&&blockDone(e);
-  return `<div class="ev" style="cursor:pointer;align-items:center" onclick="openEditEv('${esc(e.id)}')">${blk?`<button class="chk ${dn?"on":""}" style="width:24px;height:24px;font-size:13px;${dn?`background:${e.col};border-color:transparent`:""}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}<div class="bar" style="background:${e.col};align-self:stretch"></div><div class="time">${e.allDay?"Día":fmtTime(e.s)}</div>
+  return `<div class="ev" style="cursor:pointer;align-items:center" onclick="openViewEv('${esc(e.id)}')">${blk?`<button class="chk ${dn?"on":""}" style="width:24px;height:24px;font-size:13px;${dn?`background:${e.col};border-color:transparent`:""}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}<div class="bar" style="background:${e.col};align-self:stretch"></div><div class="time">${e.allDay?"Día":fmtTime(e.s)}</div>
     <div class="grow"><div style="font-weight:600" class="${dn?"done-t":""}">${esc(e.t)}</div>${e.loc?`<div class="sub">${esc(e.loc)}</div>`:""}</div></div>`;
 }
 function taskEvRows(d){ return Object.entries(S.tareas).filter(([k,t])=>!t.hecho&&t.fecha===ymd(d)).map(([k,t])=>`<div class="ev"><div class="bar" style="background:${catCol(t.cat)}"></div><div class="time">Tarea</div><div class="grow">${esc(t.t)}</div></div>`).join("") }
@@ -452,36 +452,36 @@ function vAnyo(){
   return h;
 }
 let wkOff=0, wkMode=LS.get("wk_mode","lista");
-function wkBase(){ const b=new Date(); b.setHours(0,0,0,0); return addDays(b,wkOff*7) }
+function wkBase(){ const b=new Date(); b.setHours(0,0,0,0); b.setDate(b.getDate()-((b.getDay()+6)%7)); return addDays(b,wkOff*7) }
 function wkNav(){ const b=wkBase(), e=addDays(b,6);
   return `<div class="row between" style="margin:6px 0"><button class="btn small ghost" onclick="wkOff--;render()">‹</button>
-    <div class="center"><b>${wkOff===0?"Próximos 7 días":esc(fmtDay(b,{day:"numeric",month:"short"}))+" – "+esc(fmtDay(e,{day:"numeric",month:"short"}))}</b>${wkOff?`<div><button class="link" onclick="wkOff=0;render()">Volver a hoy</button></div>`:""}</div>
+    <div class="center"><b>${wkOff===0?"Esta semana":wkOff===1?"La semana que viene":esc(fmtDay(b,{day:"numeric",month:"short"}))+" – "+esc(fmtDay(e,{day:"numeric",month:"short"}))}</b>${wkOff?`<div><button class="link" onclick="wkOff=0;render()">Volver a hoy</button></div>`:""}</div>
     <button class="btn small ghost" onclick="wkOff++;render()">›</button></div>
     <div class="seg" style="margin-bottom:6px">${[["lista","☰ Lista"],["cols","▥ Columnas"]].map(([k,n])=>`<button class="${wkMode===k?"on":""}" onclick="wkMode='${k}';LS.set('wk_mode','${k}');render()">${n}</button>`).join("")}</div>` }
 function vLista(){
-  const base=wkBase(); if(wkOff) loadRange("w"+ymd(base),base,addDays(base,7));
+  const base=wkBase(); loadRange("w"+ymd(base),base,addDays(base,7));
   let h=wkNav(); if(wkMode==="cols") return h+vCols(base);
-  const list=allEvents();
+  const r=rng["w"+ymd(base)], list=(r&&r.events)||allEvents();
   for(let i=0;i<7;i++){ const d=addDays(base,i), evs=evsOn(list,d), tr=taskEvRows(d), di=Math.round((d-new Date(new Date().setHours(0,0,0,0)))/864e5);
     h+=`<div class="daylbl">${di===0?"Hoy":di===1?"Mañana":esc(fmtDay(d,{weekday:"long",day:"numeric"}))}</div><div class="card" style="margin:6px 0">${evs.map(evRow).join("")+tr||'<div class="sub">Libre</div>'}</div>`; }
   return h;
 }
 function vCols(base){
-  const list=allEvents(), td=today(), PX=0.9, H0=0, H1=24, top=m=>(m-H0*60)*PX, CW=74;
+  const r=rng["w"+ymd(base)], list=(r&&r.events)||allEvents(), td=today(), PX=0.9, H0=0, H1=24, top=m=>(m-H0*60)*PX, CW=0;
   const days=Array.from({length:7},(_,i)=>addDays(base,i));
-  const stM=wkOff===0?toMin(new Date())-60:480;
-  let h=`<div class="card" style="padding:0"><div id="tlsc" class="tlscroll" data-k="cols:${ymd(base)}" data-st="${Math.max(0,top(stM))}" style="overflow:auto;max-height:65vh;-webkit-overflow-scrolling:touch"><div style="display:flex;min-width:${34+CW*7}px">
-    <div style="width:34px;flex:none;padding-top:40px;position:sticky;left:0;z-index:6;background:var(--card);height:${(H1-H0)*60*PX+40}px">${Array.from({length:H1-H0+1},(_,i)=>`<span class="sub" style="position:absolute;top:${40+i*60*PX-7}px;right:4px;font-size:10px">${pad(H0+i)}</span>`).join("")}</div>`;
+  const stM=wkOff===0?toMin(new Date())-60:480, nowIn=days.some(d=>ymd(d)===td);
+  let h=`<div class="card" style="padding:0"><div id="tlsc" class="tlscroll" data-k="cols:${ymd(base)}" data-st="${Math.max(0,top(stM))}" style="overflow:auto;max-height:65vh;-webkit-overflow-scrolling:touch"><div style="display:flex">
+    <div style="width:26px;flex:none;padding-top:40px;position:sticky;left:0;z-index:6;background:var(--card);height:${(H1-H0)*60*PX+40}px">${Array.from({length:H1-H0+1},(_,i)=>`<span class="sub" style="position:absolute;top:${40+i*60*PX-7}px;right:2px;font-size:9px">${pad(H0+i)}</span>`).join("")}</div>`;
   for(const d of days){ const k=ymd(d), evs=evsOn(list,d), allD=evs.filter(e=>e.allDay), timed=evs.filter(e=>!e.allDay), isT=k===td;
-    h+=`<div style="flex:1;min-width:${CW}px;border-left:1px solid var(--line)">
-      <button onclick="agDia='${k}';dprop=null;setAg('dia')" style="display:block;width:100%;height:40px;position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);text-align:center;line-height:1.1;${isT?`color:${C.pool};font-weight:800`:""}"><div class="sub" style="font-size:11px;${isT?`color:${C.pool}`:""}">${esc(fmtDay(d,{weekday:"short"}))}</div><div style="font-size:16px;font-weight:700">${d.getDate()}</div></button>
+    h+=`<div style="flex:1;min-width:0;border-left:1px solid var(--line)">
+      <button onclick="agDia='${k}';dprop=null;setAg('dia')" style="display:block;width:100%;height:40px;position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);text-align:center;line-height:1.1;${isT?`color:${C.pool};font-weight:800`:""}"><div class="sub" style="font-size:10px;${isT?`color:${C.pool}`:""}">${esc(fmtDay(d,{weekday:"short"}).slice(0,3))}</div><div style="font-size:15px;font-weight:700;${isT?`background:${C.pool};color:#fff;border-radius:99px;width:24px;height:24px;line-height:24px;margin:0 auto`:""}">${d.getDate()}</div></button>
       <div class="tlc" data-day="${k}" data-h0="${H0}" data-h1="${H1}" data-px="${PX}" style="position:relative;height:${(H1-H0)*60*PX}px">`;
     for(let hh=H0;hh<=H1;hh++) h+=`<div style="position:absolute;top:${top(hh*60)}px;left:0;right:0;border-top:1px solid var(--line);opacity:.6"></div>`;
     if(isT){ const nm=toMin(new Date()); if(nm>=H0*60) h+=`<div style="position:absolute;top:${top(nm)}px;left:0;right:0;border-top:2px solid ${C.poppy};z-index:3"></div>` }
-    allD.slice(0,2).forEach((e,i)=>{ h+=`<div class="tlb" onclick="if(!tlNoClick())openEditEv('${esc(e.id)}')" style="position:absolute;top:${i*16}px;left:2px;right:2px;height:14px;background:${e.col};color:#252D45;border-radius:5px;font-size:9px;font-weight:700;padding:0 3px;overflow:hidden;white-space:nowrap;z-index:2">${esc(e.t)}</div>` });
+    allD.slice(0,2).forEach((e,i)=>{ h+=`<div class="tlb" onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${i*16}px;left:2px;right:2px;height:14px;background:${e.col};color:#252D45;border-radius:5px;font-size:9px;font-weight:700;padding:0 3px;overflow:hidden;white-space:nowrap;z-index:2">${esc(e.t)}</div>` });
     const L=lanes(timed.map(e=>({key:e.id,a:ymd(e.s)===k?toMin(e.s):0,b:ymd(e.e)===k?toMin(e.e):1440})));
     for(const e of timed){ const a=ymd(e.s)===k?toMin(e.s):0, b=ymd(e.e)===k?toMin(e.e):1440, mv=ymd(e.s)===k&&ymd(e.e)===k, dn=isBlock(e)&&blockDone(e);
-      h+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openEditEv('${esc(e.id)}')" style="position:absolute;top:${Math.max(0,top(a))+1}px;height:${Math.max(16,(b-Math.max(a,H0*60))*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:7px;padding:2px 4px;font-size:10px;line-height:1.2;overflow:hidden;z-index:2;${dn?"opacity:.5":""}">
+      h+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${Math.max(0,top(a))+1}px;height:${Math.max(16,(b-Math.max(a,H0*60))*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:5px;padding:1px 2px;font-size:9px;line-height:1.15;overflow:hidden;word-break:break-word;z-index:2;${dn?"opacity:.5":""}">
         <b style="display:block;${dn?"text-decoration:line-through":""}">${esc(e.t)}</b><span class="tlt" style="opacity:.75">${fmtTime(e.s)}</span>${mv?`<div class="tlh"></div>`:""}</div>` }
     if(qAdd&&qAdd.day===k) h+=`<div style="position:absolute;top:${top(qAdd.a)+1}px;height:${Math.max(16,Math.min(qAdd.dur,1440-qAdd.a)*PX-2)}px;left:2px;right:2px;border:2px dashed ${C.pool};background:var(--soft);border-radius:7px;font-size:10px;padding:2px 4px;z-index:4"><b>${esc(qAdd.t||"Nueva")}</b></div>`;
     h+=`</div></div>`; }
@@ -566,7 +566,7 @@ function vDia(){
   const L=lanes(timed.map(e=>({key:e.id,a:ymd(e.s)===day?toMin(e.s):0,b:ymd(e.e)===day?toMin(e.e):1440})).concat(PR.map(it=>({key:it.id,a:it.a,b:it.b}))));
   for(const e of timed){ const a=ymd(e.s)===day?toMin(e.s):0, b=ymd(e.e)===day?toMin(e.e):1440, blk=isBlock(e), dn=blk&&blockDone(e);
     const mv=ymd(e.s)===day&&ymd(e.e)===day;
-    tl+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openEditEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:10px;padding:3px 6px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
+    tl+=`<div class="tlb" ${mv?`data-k="ev" data-id="${esc(e.id)}" data-a="${a}" data-b="${b}"`:""} onclick="if(!tlNoClick())openViewEv('${esc(e.id)}')" style="position:absolute;top:${top(a)+1}px;height:${Math.max(20,(b-a)*PX-2)}px;${laneCss(L,e.id,1)};background:${e.col};color:#252D45;border-radius:10px;padding:3px 6px;font-size:13px;overflow:hidden;cursor:pointer;z-index:2;display:flex;gap:6px;align-items:flex-start;${dn?"opacity:.55":""}">
       ${blk?`<button class="chk ${dn?"on":""}" style="width:20px;height:20px;font-size:11px;border-color:#252D45;background:${dn?"#fff8":"transparent"}" onclick="event.stopPropagation();toggleBlock('${esc(e.id)}')">${dn?"✓":""}</button>`:""}
       <div style="min-width:0"><b class="${dn?"done-t":""}">${esc(e.t)}</b> <span class="tlt" style="opacity:.75">${fmtTime(e.s)}–${fmtTime(e.e)}</span></div>${mv?`<div class="tlh"></div>`:""}</div>` }
   if(dprop&&dprop.day===day) for(const it of dprop.items) tl+=`<div class="tlb" data-k="pr" data-id="${it.id}" data-a="${it.a}" data-b="${it.b}" onclick="if(!tlNoClick()){dprop.items=dprop.items.filter(x=>x.id!=='${it.id}');render()}" style="position:absolute;top:${top(it.a)+1}px;height:${Math.max(20,(it.b-it.a)*PX-2)}px;${laneCss(L,it.id,1)};border:2px dashed ${catCol(it.cat)};background:var(--card);border-radius:10px;padding:3px 8px;font-size:13px;overflow:hidden;z-index:2;cursor:pointer">
@@ -674,10 +674,15 @@ async function tlEnd(){ if(!TD) return; const d=TD; TD=null; clearTimeout(d.t); 
   try{ await mcp.callTool(CAL,"update_event",{eventId:d.id,startTime:`${day}T${mm(d.na)}:00`,endTime:`${day}T${mm(d.nb)}:00`}); toast(moved?`Movido al ${fmtDay(parseYmd(day),{weekday:"long"})} a las ${mm(d.na)} ✓`:`Movido a las ${mm(d.na)} ✓`); await calChanged(); render() }
   catch(x){ for(const [e,s0,e0] of olds){ e.s=s0; e.e=e0 } render(); toast("Google no dejó moverlo") }
 }
-document.addEventListener("pointerdown",tlStart);
-document.addEventListener("pointermove",tlMove,{passive:false});
+const tPt=ev=>{ const t=(ev.touches&&ev.touches[0])||(ev.changedTouches&&ev.changedTouches[0]); return {target:ev.target,clientX:t.clientX,clientY:t.clientY,preventDefault:()=>{ if(ev.cancelable) ev.preventDefault() }} };
+document.addEventListener("pointerdown",ev=>{ if(ev.pointerType!=="touch") tlStart(ev) });
+document.addEventListener("pointermove",ev=>{ if(ev.pointerType!=="touch") tlMove(ev) },{passive:false});
+document.addEventListener("touchstart",ev=>{ if(ev.touches.length===1) tlStart(tPt(ev)); else if(TD){ clearTimeout(TD.t); TD=null } },{passive:true});
+document.addEventListener("touchmove",ev=>{ if(TD) tlMove(tPt(ev)) },{passive:false});
+document.addEventListener("touchend",ev=>{ if(TD) tlEnd() });
+document.addEventListener("touchcancel",ev=>{ if(TD) tlEnd() });
 document.addEventListener("touchmove",ev=>{ if(TD&&TD.on) ev.preventDefault() },{passive:false});
-["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,tlEnd));
+["pointerup","pointercancel"].forEach(t=>document.addEventListener(t,ev=>{ if(ev.pointerType!=="touch") tlEnd() }));
 document.addEventListener("contextmenu",ev=>{ if(ev.target.closest&&ev.target.closest(".tlb")) ev.preventDefault() });
 /* --- PLANIFICADOR: reparte gym, TFG y estudio en los huecos libres --- */
 const plan=()=>Object.assign({tfgH:6,asigH:{},gymDias:[1,3,4,5,6],semana:"proxima",manana:true},S.app.plan||{});
@@ -795,6 +800,25 @@ function vPlan(){
 }
 function openNewEv(d){ newEv={t:"",d:d||today(),hi:"10:00",hf:"11:00",all:false,aviso:false,cat:null,rep:"no"}; go('agenda'); window.scrollTo(0,0) }
 const hm=d=>pad(d.getHours())+":"+pad(d.getMinutes());
+let evView=null;
+function openViewEv(id){ if(!evById(id)) return; evView=id; render() }
+function evViewSheet(){ const e=evById(evView); if(!e){ evView=null; return "" }
+  const blk=isBlock(e), dn=blk&&blockDone(e), c=EVCATS.find(x=>x.k===e.cat), endI=e.allDay?addDays(e.e,-1):e.e, same=ymd(e.s)===ymd(endI);
+  const when=e.allDay?(same?fmtDay(e.s,{weekday:"long",day:"numeric",month:"long"}):fmtDay(e.s,{day:"numeric",month:"short"})+" – "+fmtDay(endI,{day:"numeric",month:"short"}))+" · todo el día"
+    :fmtDay(e.s,{weekday:"long",day:"numeric",month:"long"})+(same?"":"")+"<br>"+fmtTime(e.s)+" – "+(same?"":fmtDay(e.e,{day:"numeric",month:"short"})+" ")+fmtTime(e.e)+` <span class="sub">(${(()=>{const m=Math.round((e.e-e.s)/60000);return m%60?(m>=60?Math.floor(m/60)+" h "+m%60+" min":m+" min"):m/60+" h"})()})</span>`;
+  const links=t=>esc(t).replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener">$1</a>').replace(/\n/g,"<br>");
+  const desc=(e.desc||"").replace(/<br\s*\/?>/gi,"\n").replace(/<[^>]+>/g,"");
+  return `<div onclick="if(event.target===this){evView=null;render()}" style="position:fixed;inset:0;z-index:60;background:#0005;display:flex;align-items:flex-end;justify-content:center">
+  <div style="width:100%;max-width:560px;max-height:85vh;overflow-y:auto;background:var(--card);border-radius:18px 18px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom))">
+    <div class="row between" style="align-items:flex-start;gap:10px"><div class="row" style="gap:10px;align-items:flex-start"><span style="width:12px;height:12px;border-radius:4px;background:${e.col};margin-top:7px;flex:none"></span>
+      <div><div style="font-size:20px;font-weight:800;line-height:1.25">${esc(e.t)}</div>${c?`<div class="sub">${c.e} ${esc(c.n)}</div>`:""}</div></div>
+      <button class="x" onclick="evView=null;render()">✕</button></div>
+    <div style="margin:12px 0 0 22px;line-height:1.5">${when}${e.rec?`<div class="sub">🔁 Se repite</div>`:""}${e.aviso?`<div class="sub">🔔 Con aviso</div>`:""}</div>
+    ${e.loc?`<div style="margin:10px 0 0 22px">📍 <a href="https://maps.apple.com/?q=${encodeURIComponent(e.loc)}" target="_blank" rel="noopener">${esc(e.loc)}</a></div>`:""}
+    ${desc.trim()?`<div style="margin:12px 0 0 22px;padding:10px 12px;background:var(--soft);border-radius:12px;white-space:normal;word-break:break-word">${links(desc.trim())}</div>`:""}
+    ${blk?`<div class="row" style="gap:8px;margin-top:14px"><button class="btn small ${dn?"ghost":"ok"}" style="flex:1" onclick="toggleBlock('${esc(e.id)}');render()">${dn?"Desmarcar":"✓ Hecho"}</button>${dn?"":`<button class="btn small ghost" style="flex:1" onclick="evView=null;focoBlock('${esc(e.id)}')">▶ Empezar</button>`}</div>`:""}
+    <div class="row" style="gap:8px;margin-top:10px"><button class="btn" style="flex:1" onclick="evView=null;openEditEv('${esc(e.id)}')">✏️ Editar</button></div>
+  </div></div>` }
 function openEditEv(id){
   if(!mcp) return; const e=evById(id); if(!e) return;
   const endIncl=e.allDay?addDays(e.e,-1):e.e;
@@ -1323,7 +1347,7 @@ function toggleEnt(kind,id){
 function entRow(x,a){
   const n=x.d?daysTo(x.d):null, urg=!x.done&&n!=null&&n<=3;
   return `<div class="it"><button class="chk ${x.done?"on":""}" style="${x.done?`background:${a.col}`:""}" onclick="toggleEnt('${x.kind}','${esc(x.id)}')">${x.done?"✓":""}</button>
-    <div class="grow" style="cursor:pointer" onclick="${x.kind==="ev"?`openEditEv('${esc(x.id)}')`:`openTask('${x.id}');go('tareas')`}"><div class="${x.done?"done-t":""}">${esc(x.t)}</div></div>
+    <div class="grow" style="cursor:pointer" onclick="${x.kind==="ev"?`openViewEv('${esc(x.id)}')`:`openTask('${x.id}');go('tareas')`}"><div class="${x.done?"done-t":""}">${esc(x.t)}</div></div>
     <span class="sub" style="white-space:nowrap;${urg?`color:${C.poppy};font-weight:700`:""}">${n!=null?esc(dTxt(n)):"sin fecha"}</span></div>`;
 }
 function openEntNew(id){ entNew={asig:id,t:"",d:"",cal:!!mcp,aviso:false}; render() }
@@ -1577,7 +1601,7 @@ function vBuscar(){
   const t=q.trim().toLowerCase(); let res=[];
   if(t.length>=2){
     const has=x=>String(x||"").toLowerCase().includes(t);
-    for(const e of allEvents()) if(has(e.t)||has(e.loc)) res.push(["📅",e.t,fmtDay(e.s,{weekday:"short",day:"numeric",month:"short"}),`openEditEv('${esc(e.id)}')`,e.s.getTime()]);
+    for(const e of allEvents()) if(has(e.t)||has(e.loc)) res.push(["📅",e.t,fmtDay(e.s,{weekday:"short",day:"numeric",month:"short"}),`openViewEv('${esc(e.id)}')`,e.s.getTime()]);
     for(const [k,x] of Object.entries(S.tareas)) if(has(x.t)) res.push(["✅",x.t,x.hecho?"hecha":(x.fecha||"sin fecha"),`tarTab='tareas';openTask('${k}');go('tareas')`,0]);
     for(const [k,x] of Object.entries(S.notas)) if(has(x.t)) res.push(["📝",x.t.slice(0,80),"nota",`tarTab='notas';go('tareas')`,0]);
     for(const [k,x] of Object.entries(S.tfglog)) if(has(x.t)) res.push(["🎓",x.t.slice(0,80),"diario TFG",`estTab='tfg';go('estudio')`,0]);
