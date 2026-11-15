@@ -127,9 +127,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794748888"></script>
-<script src="supabase.js?v=1794748888"></script>
-<script src="standalone.js?v=1794748888"></script>
+<script src="config.js?v=1794749048"></script>
+<script src="supabase.js?v=1794749048"></script>
+<script src="standalone.js?v=1794749048"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -1332,6 +1332,7 @@ let recFrom=null;
 function vRecetaDetalle(){
   const r=recetas().find(x=>x.id===recVer); if(!r){ recVer=null; return vRecetas() }
   const ing=ingList(r), pas=pasosList(r);
+  if(recMenu.id!==r.id) recMenu={id:r.id,d:todayKey(),m:null};
   return `<button class="link mute" onclick="recVer=null;${recFrom?"comTab='menu';recFrom=null;":""}render()">‹ ${recFrom?"Menú":"Recetas"}</button>
     ${recFrom?`<div class="row" style="gap:8px;margin:6px 0"><button class="btn small ghost" onclick="pick={d:recFrom.d,m:recFrom.m,q:'',txt:''};recVer=null;recFrom=null;comTab='menu';render()">🔄 Cambiar plato</button></div>`:""}<h2 style="margin-top:4px">${esc(r.n)}</h2>
     ${r.raciones?`<div class="sub">${r.raciones} raciones</div>`:""}${r.keto?`<div class="note" style="color:var(--ink)">🥑 ${esc(r.keto)}</div>`:""}
@@ -1341,9 +1342,15 @@ function vRecetaDetalle(){
       <button class="btn" style="margin-top:10px" onclick="compraDe(recetas().find(x=>x.id==='${r.id}'))">🛒 Añadir a la lista de la compra</button></div>
     ${pas.length?`<div class="card"><div class="head" style="${hs('h:Pasos','sky')}"><span class="cap">Pasos</span></div>
       ${pas.map((x,i)=>`<div class="row" style="align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)"><b style="min-width:24px;color:var(--mute)">${i+1}</b><div>${esc(x)}</div></div>`).join("")}</div>`:""}
-    <button class="btn ghost" style="margin-bottom:10px" onclick="editReceta('${r.id}')">✏️ Editar receta</button>
+    <div class="card"><div class="head" style="${hs('h:Poner en el menú','sage')}"><span class="cap">📅 Poner en el menú</span></div>
+      <div class="row" style="gap:5px;flex-wrap:wrap">${DIAS.map(([k,n])=>`<button class="pill" style="padding:7px 10px;background:${recMenu.d===k?C.daff:"var(--soft)"};color:${recMenu.d===k?"#252D45":"var(--mute)"}" onclick="recMenu.d='${k}';render()">${n.slice(0,3)}${k===todayKey()?" · hoy":""}</button>`).join("")}</div>
+      <div class="row" style="gap:5px;flex-wrap:wrap;margin-top:8px">${MEALS.map(([k,n])=>`<button class="pill" style="padding:7px 10px;background:${(recMenu.m||r.tipo)===k?C.daff:"var(--soft)"};color:${(recMenu.m||r.tipo)===k?"#252D45":"var(--mute)"}" onclick="recMenu.m='${k}';render()">${MEAL_IC[k]} ${n}</button>`).join("")}</div>
+      ${(()=>{ const d=recMenu.d||todayKey(), m=recMenu.m||r.tipo||"com", cur=(menu()[d]||{})[m]; return `<button class="btn small" style="margin-top:10px" onclick="setMeal('${d}','${m}',${esc(JSON.stringify(r.n))});toast('${MEAL_IC[m]} Puesta en el menú del ${(DIAS.find(x=>x[0]===d)||[])[1].toLowerCase()} ✓')">Poner en ${MEALS.find(x=>x[0]===m)[1].toLowerCase()} del ${(DIAS.find(x=>x[0]===d)||[])[1].toLowerCase()}</button>${cur&&cur!==r.n?`<div class="sub" style="font-size:12px;margin-top:4px">Ahora hay: ${esc(cur)} (se cambiará)</div>`:""}` })()}</div>
+    <div class="row" style="gap:8px;margin-bottom:10px"><button class="btn ghost" style="flex:1" onclick="editReceta('${r.id}')">✏️ Editar receta</button>
+      <button class="btn ghost" style="flex:1;color:${C.poppy}" onclick="if(Date.now()-delArm<3000){ ${r.mia?`removeDoc('recetas','${r.id}')`:`putDoc('app','comida',{ocultas:[...((S.app.comida&&S.app.comida.ocultas)||[]),'${r.id}']})`};recVer=null;toast('Receta borrada') }else{ delArm=Date.now();toast('Pulsa otra vez para borrarla') }">🗑 Borrar</button></div>
     `;
 }
+let recMenu={d:null,m:null};
 /* Elegir plato para el menú desde las recetas */
 let pick=null;
 function pickSheet(){
