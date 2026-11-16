@@ -127,9 +127,9 @@
 <nav class="tabs" id="tabs"></nav>
 <div id="pocket"></div>
 
-<script src="config.js?v=1794749451"></script>
-<script src="supabase.js?v=1794749451"></script>
-<script src="standalone.js?v=1794749451"></script>
+<script src="config.js?v=1794822025"></script>
+<script src="supabase.js?v=1794822025"></script>
+<script src="standalone.js?v=1794822025"></script>
 <script>
 /* ================= UTILIDADES ================= */
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
@@ -1103,8 +1103,27 @@ const catCol=c=>cats()[c]||(c==="Clase"?C.sky:C.sage);
 let tNew={t:"",fecha:"",cat:"TFG"}, showDone=false, tEdit=null;
 function openTask(id){ const t=S.tareas[id]; if(!t) return; tEdit={id,t:t.t,fecha:t.fecha||"",cat:t.cat}; render() }
 function saveTask(){ const x=tEdit, t=S.tareas[x.id]; if(!t||!x.t.trim()) return; putDoc("tareas",x.id,Object.assign({},t,{t:x.t.trim(),fecha:x.fecha||null,cat:x.cat})); tEdit=null; render() }
-function addTask(){ const t=tNew.t.trim(); if(!t) return; putDoc("tareas",uid(),{t,fecha:tNew.fecha||null,cat:tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
-function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); if(!t.hecho) toast("✓ Hecha",()=>{ const x=S.tareas[id]; if(x&&x.hecho) putDoc("tareas",id,Object.assign({},x,{hecho:false,hechoEl:null})) }) }
+function addTask(fecha){ const t=tNew.t.trim(); if(!t) return; putDoc("tareas",uid(),{t,fecha:fecha||tNew.fecha||null,cat:fecha?(tNew.cat==="TFG"&&!tNew.t.toLowerCase().includes("tfg")?"Personal":tNew.cat):tNew.cat,hecho:false,creado:new Date().toISOString()}); tNew.t=""; render(); }
+function tPickBox(compact){ const AS=asigs(), a=AS.find(x=>x.id===tPick.a)||AS[0]; if(!a) return ""; const temas=(a.temas||[]).filter(t=>!t.done), ents=entregasOf(a.code).filter(x=>!x.done), ed=S.app.entdias||{};
+  const fecha=compact?"today()":"(tNew.fecha||today())";
+  return `<div style="margin-top:8px;padding:10px;background:var(--soft);border-radius:12px">
+    <div class="row" style="gap:5px;flex-wrap:wrap">${AS.map(x=>`<button type="button" class="pill" style="padding:6px 10px;font-weight:700;background:${x.id===a.id?x.col:"var(--card)"};color:${x.id===a.id?"#252D45":"var(--mute)"}" onclick="tPick.a='${x.id}';render()">${esc(x.code)}</button>`).join("")}</div>
+    ${temas.length?`<div class="sub" style="margin-top:8px">📖 Temas y ejercicios</div><div class="row" style="gap:5px;flex-wrap:wrap;margin-top:4px">${temas.map(t=>`<button type="button" class="pill" style="padding:6px 10px;background:var(--card);color:var(--ink)" onclick="pickClase('tema','${a.id}','${t.id}',${fecha})">${esc(t.n)}${t.dias?` · ${t.dias}d`:""}</button>`).join("")}</div>`:""}
+    ${ents.length?`<div class="sub" style="margin-top:8px">📝 Entregas</div><div class="row" style="gap:5px;flex-wrap:wrap;margin-top:4px">${ents.map(x=>{ const n=x.d?daysTo(x.d):null; return `<button type="button" class="pill" style="padding:6px 10px;background:var(--card);color:var(--ink)" onclick="pickClase('ent','${a.id}','${esc(x.id)}',${fecha})">${esc(x.t)}${n!=null?` · <b style="${n<=3?`color:${C.poppy}`:""}">${esc(dTxt(n))}</b>`:""}${ed[x.id]?` · ${ed[x.id]}d`:""}</button>` }).join("")}</div>`:""}
+    ${!temas.length&&!ents.length?`<div class="sub" style="margin-top:8px">${esc(a.code)} no tiene temas ni entregas pendientes.</div>`:""}
+    <div class="sub" style="font-size:12px;margin-top:8px">Toca uno y se apunta como tarea ${compact?"para hoy":"para la fecha de arriba (o hoy)"}. Al marcarla ✓, se marca también en Clases.</div></div>` }
+function pickClase(kind,aid,id,fecha){ const a=asigs().find(x=>x.id===aid); if(!a) return;
+  if(kind==="tema"){ const t=(a.temas||[]).find(x=>x.id===id); if(!t) return;
+    putDoc("tareas",uid(),{t:t.n,fecha,cat:a.code,hecho:false,creado:new Date().toISOString(),link:{tema:id,a:aid}}); setTemas(aid,T=>{ const x=T.find(y=>y.id===id); if(x) x.fecha=fecha }) }
+  else{ const x=entregasOf(a.code).find(e=>e.id===id); if(!x) return;
+    if(x.kind==="task"&&S.tareas[x.id]){ toast("Esa entrega ya es una tarea: la pongo para "+(fecha===today()?"hoy":fmtDay(parseYmd(fecha),{day:"numeric",month:"short"})));
+      putDoc("tareas",uid(),{t:"Trabajar en: "+x.t,fecha,cat:a.code,hecho:false,creado:new Date().toISOString(),link:{ent:x.id,kind:x.kind}}); tPick=null; return render() }
+    putDoc("tareas",uid(),{t:"Trabajar en: "+x.t,fecha,cat:a.code,hecho:false,creado:new Date().toISOString(),link:{ent:x.id,kind:x.kind}}) }
+  tPick=null; toast(`📚 Apuntado ${fecha===today()?"para hoy":"para el "+fmtDay(parseYmd(fecha),{day:"numeric",month:"short"})} ✓`); render() }
+function linkSync(t,done){ const L=t&&t.link; if(!L) return;
+  if(L.tema) setTemas(L.a,T=>{ const x=T.find(y=>y.id===L.tema); if(x){ x.done=done; x.doneEl=done?today():null } });
+  if(L.ent){ const a=asigs().find(z=>z.code===t.cat); const e=a&&entregasOf(a.code).find(z=>z.id===L.ent); if(e&&!!e.done!==done) toggleEnt(e.kind,e.id) } }
+function toggleTask(id){ const t=S.tareas[id]; if(!t) return; putDoc("tareas",id,Object.assign({},t,{hecho:!t.hecho,hechoEl:!t.hecho?today():null})); linkSync(t,!t.hecho); if(!t.hecho) toast(t.link?(t.link.tema?"✓ Hecha · tema marcado en Clases":"✓ Hecha · entrega terminada"):"✓ Hecha",()=>{ const x=S.tareas[id]; if(x&&x.hecho){ putDoc("tareas",id,Object.assign({},x,{hecho:false,hechoEl:null})); linkSync(x,false) } }) }
 function delTask(id){ const t=S.tareas[id]; removeDoc("tareas",id); if(t&&!tEdit) toast("Tarea borrada",()=>putDoc("tareas",id,t)) }
 function taskRow(id,t){
   if(tEdit&&tEdit.id===id) return `<div class="it" style="display:block"><input value="${esc(tEdit.t)}" oninput="tEdit.t=this.value">
@@ -1118,9 +1137,11 @@ function taskRow(id,t){
       <div class="row" style="margin-top:3px"><span class="pill" style="background:${catCol(t.cat)}">${esc(t.cat)}</span>${fl?`<span class="sub" style="${od?`color:${C.poppy};font-weight:700`:""}">${od?"Vencida · ":""}${esc(fl)}</span>`:""}</div></div>
     <button class="x" onclick="delTask('${id}')">✕</button></div>`;
 }
+let tPick=null;
 function taskForm(compact){
-  return `<form onsubmit="event.preventDefault();addTask()"><div class="row"><input placeholder="Nueva tarea o entrega…" value="${esc(tNew.t)}" oninput="tNew.t=this.value">
+  return `<form onsubmit="event.preventDefault();addTask(${compact?"today()":""})"><div class="row"><input placeholder="Nueva tarea o entrega…" value="${esc(tNew.t)}" oninput="tNew.t=this.value">
     <button class="btn small" type="submit">+</button></div>
+    ${asigs().length?`<button type="button" class="link" style="margin-top:6px" onclick="tPick=tPick?null:{a:asigSel||null,c:${compact?"1":"0"}};render()">${tPick?"✕ Cerrar":"📚 Elegir de clase (temas, ejercicios, entregas)"}</button>${tPick?tPickBox(compact):""}`:""}
     ${compact?"":`<div class="row" style="margin-top:8px"><input type="date" value="${tNew.fecha}" onchange="tNew.fecha=this.value">
     <select onchange="tNew.cat=this.value">${Object.keys(cats()).map(c=>`<option ${c===tNew.cat?"selected":""}>${c}</option>`).join("")}</select></div>`}</form>`;
 }
@@ -1558,7 +1579,7 @@ function entregasOf(code){ if(MEMO&&MEMO["en"+code]) return MEMO["en"+code]; con
 function entregasOf0(code){
   const hd=entDone(), now=addDays(new Date(),-1);
   const fromCal=calFor(code).filter(e=>/entrega|examen|prueba|parcial|trabajo/i.test(e.t)&&e.e>now).map(e=>({kind:"ev",id:e.id,t:e.t.replace(/^[⚠️📝\s]+/u,""),d:ymd(e.s),done:!!hd[e.id]}));
-  const fromTask=Object.entries(S.tareas).filter(([k,x])=>x.cat===code&&(x.fecha||!x.hecho)).map(([k,x])=>({kind:"task",id:k,t:x.t,d:x.fecha||"",done:!!x.hecho}));
+  const fromTask=Object.entries(S.tareas).filter(([k,x])=>x.cat===code&&!x.link&&(x.fecha||!x.hecho)).map(([k,x])=>({kind:"task",id:k,t:x.t,d:x.fecha||"",done:!!x.hecho}));
   return [...fromCal,...fromTask].sort((x,y)=>(x.d||"9999").localeCompare(y.d||"9999"));
 }
 function toggleEnt(kind,id){
