@@ -250,7 +250,7 @@ alter publication supabase_realtime add table docs;`;
     if(!c.url||!c.key){ window.mdShowSetup(); return }
     sb=window.supabase.createClient(c.url,c.key,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
     const {data}=await sb.auth.getSession();
-    const go=s=>{ if(!s||uid) return; uid=s.user.id; closeOverlay(); resolveReady(); flush(); setTimeout(()=>autoGoogle("inicio"),800) };
+    const go=s=>{ if(!s||uid) return; uid=s.user.id; try{ const em=s.user.email; if(em&&/@gmail\.com$|@googlemail\.com$/i.test(em)&&cfg().gmail!==em) set(LSK,Object.assign({},cfg(),{gmail:em})) }catch(e){} closeOverlay(); resolveReady(); flush(); setTimeout(()=>autoGoogle("inicio"),800) };
     if(data.session) go(data.session); else showLogin();
     sb.auth.onAuthStateChange((ev,s)=>{ if(s) go(s) });
   }
